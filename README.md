@@ -29,7 +29,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python run_eval.py --scan-file examples/whatsapp_tools.json
 ```
 
-## 规则包（`rules/`，公开可审）
+## 规则包（`guard/rules.py`，公开可审）
 
 | 家族 | 检什么 | 真实原型 |
 |---|---|---|
