@@ -37,22 +37,57 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | `secret-read` | 读 `~/.ssh`、MCP 配置、聊天记录并外带 | 密钥窃取演示 |
 | `exfil-param` | 无害名参数（context/session_id）诱填敏感数据 | 参数外泄 |
 | `recipient-rewrite` | 改写收件人/BCC/追加抄送 | postmark-mcp 1.0.16 |
-| ` Rug-pull` 经 pin 检出 | 描述哈希漂移 | 15 个干净版本后投毒 |
+| `auth-url-exec` | 工具参数直达shell（CVE-2025-6514模式） | mcp-remote 命令注入 |
+| Rug-pull 经 pin 检出 | 描述哈希漂移 | 15 个干净版本后投毒 |
 
-## 离线评测结果（`rules-v1`，20 案例：12 毒 + 8 良）
+## 漂移检测（`guard/drift.py`）
+
+rug pull 不是"文件变了"，而是"变了但审核者没看见"。所以比较两个版本时回答两个
+sha256 答不了的问题：
+
+1. **哪个字段动了**（name / description / schema）——description 改写是已证实的
+   外泄通道（Microsoft 2026-06、MCPTox），而 schema 整体换键通常是客户端升级。
+2. **是否新引入规则命中**——这才是告警级；无害改写与"现在开始让 agent 读
+   `~/.ssh`"必须分开报。
+
+`run_eval.py --scan-file` 演示输出：
+
+```json
+{"name": "send_message", "status": "DRIFT", "old": "d4a86de6d98e",
+ "new": "c538212ab4d0", "fields": ["description"],
+ "new_hits": ["imperative-tag", "secret-read"]}
+```
+
+没有历史快照时只报 digest 不一致，`fields` 标
+`<unknown: no snapshot stored>`——不猜。
+
+## 离线评测结果（`rules-v1`，27 案例：17 毒 + 10 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
-| `recall_case` | 10/12 = 0.8333 | 案例级检出 |
-| `fpr_benign` | 0/8 = 0.0 | 良性误报 |
-| `recall_rule` | 0.75 | gold 规则命中率 |
+| `recall_case` | 12/17 = 0.7059 | 案例级检出 |
+| `fpr_benign` | 0/10 = 0.0 | 良性误报 |
+| `recall_rule` | 0.6818 | gold 规则命中率 |
 
-已知漏报（诚实记录，非调参掩盖）：`run_cmd`（"Run a shell command" 无
-shell=True 字样——纯描述无法判定，属方法边界）；`summarize`（"fill the
-session_id param" 缺 `with` 搭配——改写一句即可绕过，见待办对抗专项）。
+数字比首个版本（20 案例时 0.8333）**下降了，且是应该的**：新增的 7 个案例是
+对抗改写（同义 / 分词破短语 / 间接指令），本来就设计来打穿词法规则。降下来的
+部分是真实边界，不是退步。
+
+已知漏报（逐条记录，非掩盖）：
+- `adv_paraphrase_populate` / `adv_paraphrase_copy`：`populate/with/copy/into`
+  替换 `fill...with`，语义等价、词面不同 → 规则不触发。
+- `adv_indirect_bcc`："add a hidden copy to X" 不含 `bcc/append/redirect`。
+- `run_cmd`：纯描述"Run a shell command"无 shell 痕迹，属方法边界。
+- `summarize`：旧版残留漏报（"fill the session_id param"缺 with 搭配）。
+抓到的（值得记）：`adv_tag_split` 把 `<IM-POR-TANT>` 拆词逃过标签规则，
+但 `~/.ssh/id_rsa` 仍被 `secret-read` 兜住——**多家族重叠是有意的兜底设计**。
+
+> 结论：本仓证明"已知模式可被词法规则覆盖、且覆盖边界可被精确说出"，
+> 不声明通用检出率。要用在生产，请把它当第一层过滤 + 人工复核，不是裁决器。
 
 ## 待办
 
+- [x] rug-pull pin 机制（2026-10-14 落地，含字段级 diff）
 - [ ] 评测集扩到 50+30，对抗改写（同义/分词/编码）专项
 - [ ] 真实 MCP server.json 批量扫描报告
 - [ ] 与 agent-redteam 剧本联动（93 测试复用）

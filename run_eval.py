@@ -30,10 +30,13 @@ def main() -> int:
             tools = tools.get("tools", [tools])
         for t in tools:
             print(json.dumps(scan_tool(t), ensure_ascii=False))
-        # drift demo: pin then re-check
+        # Drift demo: pin the definitions as seen now, then re-check a version in
+        # which one description was rewritten after approval. Field-level output,
+        # not just "DRIFT".
         pinned = {t.get("name", "?"): digest_tool(t) for t in tools}
+        snapshots = {t.get("name", "?"): t for t in tools}
         for t in tools:
-            print(json.dumps(check_drift(t, pinned), ensure_ascii=False))
+            print(json.dumps(check_drift(t, pinned, snapshots), ensure_ascii=False))
         return 0
 
     cases = load_cases(a.cases)

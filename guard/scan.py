@@ -5,6 +5,13 @@ import hashlib
 import json
 
 from .rules import scan_text
+from . import drift as _drift
+
+# Field-level drift check lives in guard/drift.py; re-exported here so existing
+# callers (run_eval.py, older pinned consumers) keep importing from one place.
+check_drift = _drift.check_drift
+diff_tool = _drift.diff_tool
+changed_fields = _drift.changed_fields
 
 
 def tool_text(tool: dict) -> str:
@@ -22,14 +29,3 @@ def scan_tool(tool: dict) -> dict:
 def digest_tool(tool: dict) -> str:
     canon = json.dumps(tool, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canon.encode()).hexdigest()
-
-
-def check_drift(tool: dict, pinned: dict[str, str]) -> dict:
-    name = tool.get("name", "?")
-    now = digest_tool(tool)
-    old = pinned.get(name)
-    if old is None:
-        return {"name": name, "status": "new", "digest": now}
-    if old != now:
-        return {"name": name, "status": "DRIFT", "old": old[:12], "new": now[:12]}
-    return {"name": name, "status": "ok", "digest": now[:12]}
