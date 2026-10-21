@@ -20,14 +20,49 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 - `--fake` 回放只验证接线，不计入能力声明。
 - 误报是有意的保守偏向：宁可 flag 再人工看，不静默放行——阈值由回归测试锁死。
 
+## 安装
+
+```bash
+pip install mcp-guard             # PyPI（暂未发布时见下方"从源码安装"）
+```
+
+从源码安装：
+
+```bash
+git clone https://github.com/aidless/mcp-guard && cd mcp-guard
+pip install .
+mcp-guard --offline
+```
+
+开发（可编辑 + 跑测试）：
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -e . && .venv/bin/pip install pytest
+.venv/bin/python -m pytest tests/ -q
+```
+
 ## 快速开始
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m pytest tests/ -q
-.venv/bin/python run_eval.py --offline
-.venv/bin/python run_eval.py --scan-file examples/whatsapp_tools.json
+# 安装后
+mcp-guard --offline                                      # 离线评测
+mcp-guard --scan-file examples/whatsapp_tools.json       # 扫描 + 漂移检测
+
+# 未安装时也可直接跑
+python3 run_eval.py --offline
+python3 run_eval.py --scan-file examples/whatsapp_tools.json
 ```
+
+`--offline` 的实测输出（17 条 poison / 10 条 benign）：
+
+```json
+{"encoder": "rules-v1", "n_poison": 17, "n_benign": 10,
+ "recall_case": 0.7059, "fpr_benign": 0.0, "recall_rule": 0.6818}
+```
+
+> `recall_case` 是**这 17 条样本上的**用例覆盖率，不是总体检出率；
+> `fpr_benign = 0.0` 是**这 10 条 benign 上**的零误报。样本量很小，
+> 这两个数字只用于回归锁定，不作能力声明。
 
 ## 规则包（`guard/rules.py`，公开可审）
 

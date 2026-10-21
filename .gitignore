@@ -3,3 +3,22 @@ __pycache__/
 *.pyc
 .env
 .pytest_cache/
+
+
+# --- added by WorkBuddy takeover 2026-10-21 ---
+.env.*
+!.env.example
+!.env.template
+node_modules/
+venv/
+dist/
+build/
+*.egg-info/
+.DS_Store
+*.log
+data/
+models/
+.regression_tmp/
+*.bak
+
+*.bak*

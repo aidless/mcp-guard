@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-guard"
+version = "0.1.0"
+description = "Offline scanner for poisoned MCP tool descriptions, with version pinning and drift detection"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+keywords = ["mcp", "security", "ai-agents", "prompt-injection", "llm-safety"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/aidless/mcp-guard"
+
+[project.scripts]
+mcp-guard = "run_eval:main"
+
+[tool.setuptools]
+packages = ["guard"]
+py-modules = ["run_eval"]
