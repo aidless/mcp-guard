@@ -1,0 +1,58 @@
+name: mutation-control
+
+# Proves the CI gate can actually redden the build.
+#
+# A green baseline run cannot tell "gate passed" from "gate swallowed the
+# error" -- both are exit 0. Only a deliberately broken tree separates them,
+# so this workflow asserts the negative for the pytest gate:
+#
+#   baseline        -> pytest must be green, else stop
+#   mutation        -> inject a failing test, pytest must exit non-zero AND
+#                     name the injected test (a non-zero exit for some other
+#                     reason proves nothing)
+#   negative control-> the "|| echo skipping" gate shape always exits 0 and
+#                     must therefore be rejected as "no teeth"
+#   restore         -> the tree must be byte-identical to its initial state
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate-has-teeth:
+    name: pytest-gate-has-teeth
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - run: pip install -r requirements.txt
+
+      - name: Assert pristine checkout
+        run: |
+          set -euo pipefail
+          dirty="$(git status --porcelain)"
+          if [ -n "$dirty" ]; then
+            echo "::error title=Dirty checkout::mutation-control needs a pristine tree:"
+            printf '%s\n' "$dirty"
+            exit 1
+          fi
+          echo "tree is pristine"
+
+      - name: Mutation control
+        run: python scripts/mutation_control.py

@@ -23,6 +23,7 @@ Homepage = "https://github.com/aidless/mcp-guard"
 
 [project.scripts]
 mcp-guard = "run_eval:main"
+mcp-guard-scan = "guard.cli:main"
 
 [tool.setuptools]
 packages = ["guard"]

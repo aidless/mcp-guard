@@ -22,11 +22,7 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 
 ## 安装
 
-```bash
-pip install mcp-guard             # PyPI（暂未发布时见下方"从源码安装"）
-```
-
-从源码安装：
+**PyPI 尚未发布**（截至 2026-10-28）。`pip install mcp-guard` 会失败，请从源码安装：
 
 ```bash
 git clone https://github.com/aidless/mcp-guard && cd mcp-guard
@@ -41,27 +37,42 @@ python3 -m venv .venv && .venv/bin/pip install -e . && .venv/bin/pip install pyt
 .venv/bin/python -m pytest tests/ -q
 ```
 
+运行时依赖为空（`pyproject.toml` 的 `dependencies = []`）：规则包、扫描、钉选、
+漂移检测全部只用标准库。`requirements.txt` 里的 `pytest` 只在开发/测试时需要。
+
 ## 快速开始
 
 ```bash
-# 安装后
-mcp-guard --offline                                      # 离线评测
-mcp-guard --scan-file examples/whatsapp_tools.json       # 扫描 + 漂移检测
+# 安装后——两个入口，职责不同
+mcp-guard --offline                                      # 评测运行器：跑离线基准集
+mcp-guard --scan-file examples/whatsapp_tools.json       # 评测运行器：也能扫文件
+mcp-guard-scan examples/whatsapp_tools.json              # 扫描器：只扫 / 钉选 / 漂移
 
 # 未安装时也可直接跑
 python3 run_eval.py --offline
 python3 run_eval.py --scan-file examples/whatsapp_tools.json
+python3 -m guard.cli examples/whatsapp_tools.json
 ```
 
-`--offline` 的实测输出（17 条 poison / 10 条 benign）：
+### 两个命令入口的分工（2026-10-28 修的语义落差）
+
+| 命令 | 实际做什么 | 什么时候用 |
+|---|---|---|
+| `mcp-guard`（= `run_eval:main`） | 离线**评测**运行器：`--offline` 跑基准集算 recall/fpr，`--scan-file` 也能扫文件 | 复现指标、回归 |
+| `mcp-guard-scan`（= `guard.cli:main`） | 只做**扫描 + 哈希钉选 + 漂移检测**，逐工具输出 JSON 行；`--fail-on-hit` 时有命中即退出码 1 | 接进 CI 门禁 / agent 启动前的工具体检 |
+
+两者共用 `guard.scan` 的同一套扫描逻辑，扫描结果完全一致；名字曾经对不上
+（`mcp-guard --offline` 跑的是评测而不是扫描），现在拆开了。
+
+`--offline` 的实测输出（19 条 poison / 11 条 benign）：
 
 ```json
-{"encoder": "rules-v1", "n_poison": 17, "n_benign": 10,
- "recall_case": 0.7059, "fpr_benign": 0.0, "recall_rule": 0.6818}
+{"encoder": "rules-v1", "n_poison": 19, "n_benign": 11,
+ "recall_case": 0.7368, "fpr_benign": 0.0, "recall_rule": 0.7083}
 ```
 
-> `recall_case` 是**这 17 条样本上的**用例覆盖率，不是总体检出率；
-> `fpr_benign = 0.0` 是**这 10 条 benign 上**的零误报。样本量很小，
+> `recall_case` 是**这 19 条样本上的**用例覆盖率，不是总体检出率；
+> `fpr_benign = 0.0` 是**这 11 条 benign 上**的零误报。样本量很小，
 > 这两个数字只用于回归锁定，不作能力声明。
 
 ## 规则包（`guard/rules.py`，公开可审）
@@ -69,10 +80,11 @@ python3 run_eval.py --scan-file examples/whatsapp_tools.json
 | 家族 | 检什么 | 真实原型 |
 |---|---|---|
 | `imperative-tag` | `<IMPORTANT>`/`<INSTRUCTION>`类劫持标签 | WhatsApp 4444 泄露案 |
-| `secret-read` | 读 `~/.ssh`、MCP 配置、聊天记录并外带 | 密钥窃取演示 |
+| `secret-read` | 读 `~/.ssh`、`~/.aws/credentials`、`~/.netrc` 等凭据路径、MCP 配置、聊天记录并外带 | 密钥窃取演示 |
 | `exfil-param` | 无害名参数（context/session_id）诱填敏感数据 | 参数外泄 |
 | `recipient-rewrite` | 改写收件人/BCC/追加抄送 | postmark-mcp 1.0.16 |
 | `auth-url-exec` | 工具参数直达shell（CVE-2025-6514模式） | mcp-remote 命令注入 |
+| `encoded-exfil` | 敏感材料**先编码再外带**（明文规则看不见这一层） | base64 编码外带对抗改写 |
 | Rug-pull 经 pin 检出 | 描述哈希漂移 | 15 个干净版本后投毒 |
 
 ## 漂移检测（`guard/drift.py`）
@@ -82,31 +94,108 @@ sha256 答不了的问题：
 
 1. **哪个字段动了**（name / description / schema）——description 改写是已证实的
    外泄通道（Microsoft 2026-06、MCPTox），而 schema 整体换键通常是客户端升级。
-2. **是否新引入规则命中**——这才是告警级；无害改写与"现在开始让 agent 读
-   `~/.ssh`"必须分开报。
+2. **命中有没有变化**——这才是告警级；无害改写与"现在开始让 agent 读
+   `~/.ssh`"必须分开报。2026-10-28 起这一层比的是**命中内容**（规则 id +
+   实际命中的文本），不再只是规则 id：同一 family 里换载荷也算变化。
 
 `run_eval.py --scan-file` 演示输出：
 
 ```json
 {"name": "send_message", "status": "DRIFT", "old": "d4a86de6d98e",
  "new": "c538212ab4d0", "fields": ["description"],
- "new_hits": ["imperative-tag", "secret-read"]}
+ "new_hits": ["imperative-tag", "secret-read"],
+ "changed_hits": [], "alarm": true}
 ```
 
 没有历史快照时只报 digest 不一致，`fields` 标
 `<unknown: no snapshot stored>`——不猜。
 
-## 离线评测结果（`rules-v1`，27 案例：17 毒 + 10 良）
+## 离线评测结果（`rules-v1`，30 案例：19 毒 + 11 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
-| `recall_case` | 12/17 = 0.7059 | 案例级检出 |
-| `fpr_benign` | 0/10 = 0.0 | 良性误报 |
-| `recall_rule` | 0.6818 | gold 规则命中率 |
+| `recall_case` | 14/19 = 0.7368 | 案例级检出 |
+| `fpr_benign` | 0/11 = 0.0 | 良性误报 |
+| `recall_rule` | 17/24 = 0.7083 | gold 规则命中率 |
 
 数字比首个版本（20 案例时 0.8333）**下降了，且是应该的**：新增的 7 个案例是
 对抗改写（同义 / 分词破短语 / 间接指令），本来就设计来打穿词法规则。降下来的
 部分是真实边界，不是退步。
+
+### 编码对抗改写（2026-10-28 新增，可复算）
+
+新增 1 条毒用例 `export_profile`（把 SSH 私钥材料 base64 编码后塞进参数）和
+1 条良性用例 `generate_ssh_keypair`（生成 SSH 公钥并 base64 返回）。加规则前，
+`export_profile` **能被明文规则看到吗？看不到**——它绕开了 `secret-read`
+（没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
+消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算）：
+
+| | recall_case | fpr_benign | recall_rule |
+|---|---|---|---|
+| 有 `encoded-exfil` | 13/18 = 0.7222 | 0/11 = 0.0 | 16/23 = 0.6957 |
+| 没有 `encoded-exfil` | 12/18 = 0.6667 | 0/11 = 0.0 | 15/23 = 0.6522 |
+
+良性用例 `generate_ssh_keypair` 没被误伤——因为规则要求三段同现
+（敏感材料 → 编码 → 外带/落参），"生成公钥并 base64 编码"没有外带动作。
+少一段就不报，这是为压误报做的刻意取舍。
+
+### 凭据路径扩展（2026-10-28 新增，由一次 rug-pull 演练逼出来的）
+
+演练里把 `send_message` 的描述改成合法外观 + 偷读 `~/.aws/credentials`，
+漂移检测报的是：
+
+```json
+{"name": "send_message", "status": "DRIFT", "fields": ["description"],
+ "new_hits": [], "gone_hits": ["imperative-tag", "secret-read"]}
+```
+
+**`new_hits` 是空的。** 攻击换了一种（从 `~/.ssh` 换成 `~/.aws/credentials`），
+规则包里没有对应模式，于是"新引入规则命中"这个告警维度**看不见它**——
+只有哈希漂移 + 字段级 diff 抓住了它。
+
+据此给 `secret-read` 家族补了常见凭据路径（`~/.aws`、`~/.gnupg`、`~/.kube`、
+`~/.docker`、`~/.azure`、`~/.config/gcloud`、`.netrc`、`*_credentials`），
+并新增毒用例 `read_credentials`。消融测量：
+
+| | recall_case | fpr_benign | recall_rule |
+|---|---|---|---|
+| 有扩展后的 `secret-read` | 14/19 = 0.7368 | 0/11 = 0.0 | 17/24 = 0.7083 |
+| 只有 ~/.ssh 族（扩展前） | 10/19 = 0.5263 | 0/11 = 0.0 | 11/24 = 0.4583 |
+
+> 教训：**"新引入规则命中"不是漂移检测的替代品**。它是更精确的告警维度，
+> 但只在"新攻击落在已有规则覆盖内"时才有效。哈希漂移 + 字段 diff 才是兜底。
+
+补完规则后，同一次演练**仍然是 `new_hits: []`**——但原因变了：`secret-read`
+在新旧两版都命中，而 `new_hits` 算的是**规则 id 集合的差集**，不是"命中内容"
+的差集。于是"载荷被整个换掉了"这件事，在这一层依然看不见。
+
+> **2026-10-28 已修**：命中身份从"规则 id"改成"规则 id + 实际命中的文本"。
+> 同一个 `secret-read` 在旧版命中 `~/.ssh`、在新版命中 `~/.aws`，现在会落进
+> 新字段 `changed_hits`，并置 `alarm: true`。`new_hits` 的语义**保持不变**
+> （只是"此前完全没触发的规则 id"），所以旧调用方不用改。
+>
+> ```json
+> {"name": "send_message", "status": "DRIFT", "fields": ["description"],
+>  "new_hits": [], "changed_hits": ["secret-read"],
+>  "hit_delta": [
+>    {"rule": "secret-read", "change": "added",   "match": "~/.aws"},
+>    {"rule": "secret-read", "change": "removed", "match": "~/.ssh"},
+>    {"rule": "imperative-tag", "change": "removed", "match": "<IMPORTANT>"}],
+>  "gone_hits": ["imperative-tag"], "alarm": true}
+> ```
+>
+> `alarm` 是 `None` 而不是 `false` 的情况：digest 变了但没有存快照——
+> **不知道 ≠ 干净**，这时只能靠 `fields: ["<unknown: no snapshot stored>"]`
+> 提示人工介入，不能当成"没发现新命中"。
+
+三层合起来才完整（2026-10-28 后的实际形态）：
+
+| 层 | 回答的问题 | 本次演练的表现 |
+|---|---|---|
+| 哈希 + 字段 diff | 哪个字段被动了 | `fields: ["description"]` ✓ 抓到 |
+| `new_hits` | 有没有**全新规则**开始触发 | 空（规则族已被同一个 family 覆盖） |
+| `changed_hits` | 同一规则**命中的东西**是否换了 | `["secret-read"]` ✓ 抓到（新增层） |
+| 规则包覆盖度 | 新攻击是否落在**规则覆盖**内 | 补规则后覆盖（`~/.aws/credentials` 命中） |
 
 已知漏报（逐条记录，非掩盖）：
 - `adv_paraphrase_populate` / `adv_paraphrase_copy`：`populate/with/copy/into`
@@ -116,6 +205,9 @@ sha256 答不了的问题：
 - `summarize`：旧版残留漏报（"fill the session_id param"缺 with 搭配）。
 抓到的（值得记）：`adv_tag_split` 把 `<IM-POR-TANT>` 拆词逃过标签规则，
 但 `~/.ssh/id_rsa` 仍被 `secret-read` 兜住——**多家族重叠是有意的兜底设计**。
+仍未覆盖的编码变体：base64/rot13/hex 之外的编码（偏移+异或、自定义表），
+以及把编码串直接塞进参数名而不写 "include/send" 的写法，都不在 `encoded-exfil`
+的三段判定内——已知边界，未修。
 
 > 结论：本仓证明"已知模式可被词法规则覆盖、且覆盖边界可被精确说出"，
 > 不声明通用检出率。要用在生产，请把它当第一层过滤 + 人工复核，不是裁决器。
@@ -123,6 +215,13 @@ sha256 答不了的问题：
 ## 待办
 
 - [x] rug-pull pin 机制（2026-10-14 落地，含字段级 diff）
-- [ ] 评测集扩到 50+30，对抗改写（同义/分词/编码）专项
+- [x] 编码对抗改写专项第一轮（2026-10-28：1 毒 + 1 良性用例 + `encoded-exfil` 规则 + 消融测量）
+- [x] 凭据路径扩展（2026-10-28：rug-pull 演练逼出来的——`new_hits` 抓不到"换一种攻击"，
+  故 `secret-read` 补 `~/.aws`/`~/.netrc`/`~/.kube` 等路径 + 新增 `read_credentials` 用例）
+- [x] `new_hits` 改为命中内容级别（2026-10-28：新增 `changed_hits` / `hit_delta` / `alarm`；
+  `new_hits` 语义保持不变以兼容旧调用方；`alarm: null` = 没快照、无法判断）
+- [ ] 评测集扩到 50+30，对抗改写（同义/分词/编码）剩余变体
 - [ ] 真实 MCP server.json 批量扫描报告
 - [ ] 与 agent-redteam 剧本联动（93 测试复用）
+- [x] CI 门禁自证（`scripts/mutation_control.py` + `mutation-control` workflow：
+  证明 pytest 门禁在代码被改坏时**必须**变红，而不是把失败吞掉）
