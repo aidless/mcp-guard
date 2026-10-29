@@ -188,6 +188,36 @@ sha256 答不了的问题：
 > **不知道 ≠ 干净**，这时只能靠 `fields: ["<unknown: no snapshot stored>"]`
 > 提示人工介入，不能当成"没发现新命中"。
 
+### 命中身份 = 敏感锚点（2026-10-28 同日第二次修订）
+
+第一版把命中身份定成"整段命中文本"后，立刻测出误报面：`secret-read` 的模式
+`read\s+.*(id_rsa|…)` 会把中间所有词吃进 `match`，于是
+
+```
+旧: "read the id_rsa key"   → match "read the id_rsa"
+新: "read your id_rsa key"  → match "read your id_rsa"   ← 只换了 the→your
+```
+
+`alarm` 翻成 `True`，平台侧 R1 就判 `BLOCK`。纯措辞改动触发 `BLOCK` 是不可用的。
+
+所以命中身份再收一层：每条 pattern 用 `(?P<anchor>...)` 标出**"这次打的是什么"**
+那个词，比的是它：
+
+| 改动 | anchor | alarm |
+|---|---|---|
+| `read the …` → `read your …` | `id_rsa` → `id_rsa` | `False` ✅ |
+| `read the id_rsa file and show its fingerprint` → `… its SHA256 fingerprint` | `id_rsa` → `id_rsa` | `False` ✅ |
+| `read the id_rsa key` → `read the .pem key` | `id_rsa` → `.pem` | `True` ✅ |
+| `~/.ssh/id_rsa` → `~/.aws/credentials` | `ssh` → `aws` | `True` ✅ |
+| `BCC a copy` → `redirect the email` | `bcc` → `email` | `True` ✅ |
+
+没标 `(?P<anchor>...)` 的规则回退成**整段命中文本的 sha256 前 16 位**，
+所以 `match` 截断到 80 字符**不再影响漂移判断**——80 字符之后的差异照样能分辨
+（`test_anchor_ignores_80_char_truncation` 守着这条不变量）。
+
+新增测试 4 条：3 个无害改写必须 `alarm=False`、3 个真换载荷必须 `alarm=True`、
+所有内建命中必须带 anchor、anchor 不受 80 字符截断影响。
+
 三层合起来才完整（2026-10-28 后的实际形态）：
 
 | 层 | 回答的问题 | 本次演练的表现 |

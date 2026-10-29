@@ -58,14 +58,18 @@ def _norm_match(text: str) -> str:
 
 
 def _hit_map(hits: list[dict]) -> dict[tuple[str, str], str]:
-    """命中身份 = (规则 id, 归一化命中内容) -> 原始命中文本。
+    """命中身份 = (规则 id, anchor) -> 原始命中文本。
 
-    只比规则 id 会漏掉"载荷被换掉"：rug pull 把 `~/.ssh` 换成 `~/.aws` 时，
-    规则 id 一个都没变，但被命中的东西整个换了。
+    anchor 由 `scan_text` 给出：规则作者标出的"这次打的是什么"那个词
+    （`~/.aws` → `aws`，`read … id_rsa` → `id_rsa`）。没标 anchor 的规则，
+    anchor 是整段命中文本的摘要。
+
+    只比规则 id 会漏掉"载荷被换掉"；只比整段命中文本又会对纯措辞改动误报
+    （`read the id_rsa` → `read your id_rsa`）。比 anchor 是两者的中间点。
     """
     out: dict[tuple[str, str], str] = {}
     for h in hits:
-        key = (h["rule"], _norm_match(h.get("match", "")))
+        key = (h["rule"], h.get("anchor") or _norm_match(h.get("match", "")))
         out.setdefault(key, h.get("match", ""))
     return out
 
@@ -112,10 +116,10 @@ def diff_tool(old: dict, new: dict) -> dict:
     changed_hits = sorted({r for r, _ in added} & rules_before)
     gone_hits = sorted(rules_before - rules_after)
     hit_delta = (
-        [{"rule": r, "change": "added", "match": after[(r, m)]}
-         for (r, m) in sorted(added)]
-        + [{"rule": r, "change": "removed", "match": before[(r, m)]}
-           for (r, m) in sorted(removed)]
+        [{"rule": r, "change": "added", "anchor": a, "match": after[(r, a)]}
+         for (r, a) in sorted(added)]
+        + [{"rule": r, "change": "removed", "anchor": a, "match": before[(r, a)]}
+           for (r, a) in sorted(removed)]
     )
     return {
         "status": "changed",
