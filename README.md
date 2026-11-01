@@ -128,7 +128,7 @@ sha256 答不了的问题：
 1 条良性用例 `generate_ssh_keypair`（生成 SSH 公钥并 base64 返回）。加规则前，
 `export_profile` **能被明文规则看到吗？看不到**——它绕开了 `secret-read`
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
-消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算）：
+消融测量（消融数值是 README 记录的历史结论；当前仓库内该消融逻辑未独立成脚本，可复算的核心数字是 `run_eval.py --offline` 的 19/11 与 recall 三值——见下方「复算」段）：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
@@ -241,6 +241,17 @@ sha256 答不了的问题：
 
 > 结论：本仓证明"已知模式可被词法规则覆盖、且覆盖边界可被精确说出"，
 > 不声明通用检出率。要用在生产，请把它当第一层过滤 + 人工复核，不是裁决器。
+
+## 复算（可复现）
+
+| 声明 | 重算命令 | 实测值 |
+|---|---|---|
+| 离线基准集规模 | `python3 -c "import json;print(len([1 for l in open('tasks/cases.jsonl')]))"` | 30 案例（19 毒 + 11 良） |
+| 评测三指标 | `python3 run_eval.py --offline` | `recall_case=0.7368, fpr_benign=0.0, recall_rule=0.7083` |
+| 单元测试 | `python3 -m pytest tests/ -q` | 23 passed |
+| 漂移检测单测 | `python3 -m pytest tests/test_guard.py::test_anchor_ignores_80_char_truncation -q` | passed |
+
+> 复算时若指标与上方不符，说明规则包或基准集被改动——**先 diff `guard/rules.py` 与 `tasks/cases.jsonl` 再判断**，不要直接改数字。所有规则包（`guard/rules.py`）、基准集（`tasks/cases.jsonl`）、CLI 入口（`guard/cli.py`）都是公开可审的确定性代码，无模型调用。
 
 ## 待办
 
