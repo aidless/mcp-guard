@@ -13,3 +13,5 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m pytest tests/ -q
       - run: python run_eval.py --offline
+      - name: README ablation numbers stay recomputable
+        run: python scripts/measure_rule_ablation.py --check

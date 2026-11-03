@@ -128,12 +128,21 @@ sha256 答不了的问题：
 1 条良性用例 `generate_ssh_keypair`（生成 SSH 公钥并 base64 返回）。加规则前，
 `export_profile` **能被明文规则看到吗？看不到**——它绕开了 `secret-read`
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
-消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算）：
+
+消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算，一条命令可复算）。
+下表是对**当前** `cases.jsonl`（30 案例：19 毒 / 11 良，24 条 gold 规则）的实测：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 有 `encoded-exfil` | 13/18 = 0.7222 | 0/11 = 0.0 | 16/23 = 0.6957 |
-| 没有 `encoded-exfil` | 12/18 = 0.6667 | 0/11 = 0.0 | 15/23 = 0.6522 |
+| 全部规则（有 `encoded-exfil`） | 14/19 = 0.7368 | 0/11 = 0.0 | 17/24 = 0.7083 |
+| 去掉 `encoded-exfil` | 13/19 = 0.6842 | 0/11 = 0.0 | 16/24 = 0.6667 |
+
+> 复算命令：`python3 scripts/measure_rule_ablation.py`（加 `--markdown` 出这张表，
+> `--check` 把 headline 三元组接成 CI 门禁）。脚本自己会先和 `run_eval.py --offline`
+> 对表，AGREE 才继续，避免"两把尺各算各的"。
+>
+> 历史快照（首次引入时 18 毒 / 23 gold 规则，13/18 = 0.7222）已被上表取代，
+> 不再作为当前数字引用。
 
 良性用例 `generate_ssh_keypair` 没被误伤——因为规则要求三段同现
 （敏感材料 → 编码 → 外带/落参），"生成公钥并 base64 编码"没有外带动作。
@@ -155,12 +164,16 @@ sha256 答不了的问题：
 
 据此给 `secret-read` 家族补了常见凭据路径（`~/.aws`、`~/.gnupg`、`~/.kube`、
 `~/.docker`、`~/.azure`、`~/.config/gcloud`、`.netrc`、`*_credentials`），
-并新增毒用例 `read_credentials`。消融测量：
+并新增毒用例 `read_credentials`。消融测量（对**当前** `cases.jsonl`）：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
 | 有扩展后的 `secret-read` | 14/19 = 0.7368 | 0/11 = 0.0 | 17/24 = 0.7083 |
-| 只有 ~/.ssh 族（扩展前） | 10/19 = 0.5263 | 0/11 = 0.0 | 11/24 = 0.4583 |
+| 只有 `~/.ssh` 族（收紧） | 12/19 = 0.6316 | 0/11 = 0.0 | 14/24 = 0.5833 |
+
+> 这两行和上表由同一条命令产出、互相一致；`fpr_benign` 在所有消融下都保持 0，
+> 即"加规则扩覆盖没有引入良性误报"。早期快照的 10/19 / 11/24 来自更早、更小的一版
+> 规则包与案例集，与当前实现不同口径，不作为当前数字引用。
 
 > 教训：**"新引入规则命中"不是漂移检测的替代品**。它是更精确的告警维度，
 > 但只在"新攻击落在已有规则覆盖内"时才有效。哈希漂移 + 字段 diff 才是兜底。
@@ -255,3 +268,12 @@ sha256 答不了的问题：
 - [ ] 与 agent-redteam 剧本联动（93 测试复用）
 - [x] CI 门禁自证（`scripts/mutation_control.py` + `mutation-control` workflow：
   证明 pytest 门禁在代码被改坏时**必须**变红，而不是把失败吞掉）
+- [x] 消融数字可复算（2026-11-02：`scripts/measure_rule_ablation.py` 落盘，
+  与 `run_eval.py --offline` 对表 AGREE；README 两组消融表换成当前可复算实测值）
+- [x] **Agent Reliability Platform 胶水层**：与 `auditable-llm-eval` 组成三层
+  （BEFORE 门禁 / AFTER 审计 / trace 胶水）。胶水层落盘在 `auditable-llm-eval` 仓
+  `agent_platform/trace.py`（一条命令产出带 sha256 的 trace），工具绑定（allowlist）
+  与实际调用（tool_calls）两层都已接进来。
+- [ ] 让 runner 从推理路径**自动**采集 tool_calls（当前是喂入观测证据，
+  因为本仓评测腿走 ollama `/api/generate` 纯文本补全、无原生 tool_calls 字段；
+  自动采集需换 chat 接口 + function-calling 模型，属另一增量）。
