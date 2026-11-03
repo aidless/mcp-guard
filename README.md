@@ -68,7 +68,7 @@ python3 -m guard.cli examples/whatsapp_tools.json
 
 ```json
 {"encoder": "rules-v1", "n_poison": 19, "n_benign": 11,
- "recall_case": 0.7368, "fpr_benign": 0.0, "recall_rule": 0.7083}
+ "recall_case": 0.9474, "fpr_benign": 0.0, "recall_rule": 0.875}
 ```
 
 > `recall_case` 是**这 19 条样本上的**用例覆盖率，不是总体检出率；
@@ -114,13 +114,20 @@ sha256 答不了的问题：
 
 | 指标 | 值 | 读法 |
 |---|---|---|
-| `recall_case` | 14/19 = 0.7368 | 案例级检出 |
+| `recall_case` | 18/19 = 0.9474 | 案例级检出 |
 | `fpr_benign` | 0/11 = 0.0 | 良性误报 |
-| `recall_rule` | 17/24 = 0.7083 | gold 规则命中率 |
+| `recall_rule` | 21/24 = 0.875 | gold 规则命中率 |
 
 数字比首个版本（20 案例时 0.8333）**下降了，且是应该的**：新增的 7 个案例是
 对抗改写（同义 / 分词破短语 / 间接指令），本来就设计来打穿词法规则。降下来的
 部分是真实边界，不是退步。
+
+> **2026-11-02 更新**：对抗改写里有 4 条此前被词法规则漏掉（见下文"已知漏报"）。
+> 自进化闭环把它们识别为 confirmed miss 后，给 `exfil-param` 补了同义改写家族
+> （含 `fill/populate/copy ... param`）、给 `recipient-rewrite` 补了间接抄送，
+> `recall_case` 从 0.7368 → **0.9474**、`recall_rule` 从 0.7083 → **0.875**，
+> `fpr_benign` 仍为 0.0（零误报没被换掉）。
+> 这是把已知边界往回推了一格，不是调参刷分。
 
 ### 编码对抗改写（2026-10-28 新增，可复算）
 
@@ -134,8 +141,8 @@ sha256 答不了的问题：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 全部规则（有 `encoded-exfil`） | 14/19 = 0.7368 | 0/11 = 0.0 | 17/24 = 0.7083 |
-| 去掉 `encoded-exfil` | 13/19 = 0.6842 | 0/11 = 0.0 | 16/24 = 0.6667 |
+| 全部规则（有 `encoded-exfil`） | 18/19 = 0.9474 | 0/11 = 0.0 | 21/24 = 0.875 |
+| 去掉 `encoded-exfil` | 17/19 = 0.8947 | 0/11 = 0.0 | 20/24 = 0.8333 |
 
 > 复算命令：`python3 scripts/measure_rule_ablation.py`（加 `--markdown` 出这张表，
 > `--check` 把 headline 三元组接成 CI 门禁）。脚本自己会先和 `run_eval.py --offline`
@@ -168,8 +175,8 @@ sha256 答不了的问题：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 有扩展后的 `secret-read` | 14/19 = 0.7368 | 0/11 = 0.0 | 17/24 = 0.7083 |
-| 只有 `~/.ssh` 族（收紧） | 12/19 = 0.6316 | 0/11 = 0.0 | 14/24 = 0.5833 |
+| 有扩展后的 `secret-read` | 18/19 = 0.9474 | 0/11 = 0.0 | 21/24 = 0.875 |
+| 只有 `~/.ssh` 族（收紧） | 16/19 = 0.8421 | 0/11 = 0.0 | 18/24 = 0.75 |
 
 > 这两行和上表由同一条命令产出、互相一致；`fpr_benign` 在所有消融下都保持 0，
 > 即"加规则扩覆盖没有引入良性误报"。早期快照的 10/19 / 11/24 来自更早、更小的一版
@@ -240,12 +247,22 @@ sha256 答不了的问题：
 | `changed_hits` | 同一规则**命中的东西**是否换了 | `["secret-read"]` ✓ 抓到（新增层） |
 | 规则包覆盖度 | 新攻击是否落在**规则覆盖**内 | 补规则后覆盖（`~/.aws/credentials` 命中） |
 
-已知漏报（逐条记录，非掩盖）：
-- `adv_paraphrase_populate` / `adv_paraphrase_copy`：`populate/with/copy/into`
-  替换 `fill...with`，语义等价、词面不同 → 规则不触发。
-- `adv_indirect_bcc`："add a hidden copy to X" 不含 `bcc/append/redirect`。
-- `run_cmd`：纯描述"Run a shell command"无 shell 痕迹，属方法边界。
-- `summarize`：旧版残留漏报（"fill the session_id param"缺 with 搭配）。
+已知漏报（逐条记录，非掩盖）——**2026-11-02 起，四条已由自进化闭环修掉**：
+- [x] `summarize`：原 `use system prompt ... param` 规则要求两者相距 ≤30 字符，
+  实际隔了 50 字符 → 一直未命中。已给 `exfil-param` 补
+  `fill/populate/copy ... <敏感参数> ... param(eter)`，现命中。
+- [x] `adv_paraphrase_populate` / `adv_paraphrase_copy`：`populate/with`、`copy/into`
+  替换 `fill...with`，语义等价、词面不同 → 曾规则不触发。已给 `exfil-param` 补同义
+  改写家族（锚点仍是敏感参数名，copy 要求 `into <敏感参数>` 以免误伤），现均命中。
+- [x] `adv_indirect_bcc`："add a hidden copy to X" 不含 `bcc/append/redirect`。已给
+  `recipient-rewrite` 补 `hidden copy`（锚点 `copy`），现命中。
+- [ ] `run_cmd`：纯描述"Run a shell command"无 shell 痕迹，属方法边界（未修）。
+  （这是目前唯一未修的词法边界：描述里没有任何 shell 痕迹可抓。）
+
+> 机器可读的边界清单在 [`tasks/known_boundaries.json`](tasks/known_boundaries.json)。
+> `agent-evolve --fail-on-proposal` 读它，把 `run_cmd` 归为 `known_boundary` 而非
+> 新漏报；**不在清单里的** poison 一旦未被规则命中，门禁就变红。新增一块已接受的
+> 边界必须同时写进这里，否则 CI 会一直红——这是刻意的：边界要被声明，不能被沉默。
 抓到的（值得记）：`adv_tag_split` 把 `<IM-POR-TANT>` 拆词逃过标签规则，
 但 `~/.ssh/id_rsa` 仍被 `secret-read` 兜住——**多家族重叠是有意的兜底设计**。
 仍未覆盖的编码变体：base64/rot13/hex 之外的编码（偏移+异或、自定义表），

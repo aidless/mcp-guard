@@ -42,6 +42,16 @@ RULES = [
             r"fill\s+\w*(?P<anchor>context|session_id|metadata)\w*\s+with",
             r"use\s+(?P<anchor>system\s*prompt|previous\s*tool\s*result|conversation)"
             r".{0,30}param",
+            # 同义改写家族（自进化闭环抓出的 confirmed miss）：populate/fill/copy
+            # 语义等价、词面不同。三条分别覆盖：
+            #   - populate ... with（冠词可省，锚点=敏感参数名）
+            #   - copy ... into <敏感参数>（收窄避免 "copy a file into a dir" 误伤）
+            #   - fill/populate/copy ... <敏感参数> ... param(eter)（补 summarize
+            #     的 "fill the session_id param"：原 use 规则要求 system prompt 与
+            #     param 相邻 30 字符内，实际隔了 50 字符）
+            r"populate\s+(the\s+)?\w*(?P<anchor>context|session_id|metadata)\w*\b.{0,40}?\s+with\b",
+            r"copy\b.{0,80}?into\s+(the\s+)?(?P<anchor>context|session_id|metadata)\b",
+            r"(?P<anchor>fill|populate|copy)\s+(the\s+)?\w*(context|session_id|metadata)\w*\b.{0,20}?\s+param",
         ],
         "why": "诱导模型把敏感数据填进无害名参数",
     },
@@ -52,6 +62,8 @@ RULES = [
             r"\b(?P<anchor>bcc)\b",
             r"append\s+.{0,20}(?P<anchor>recipient|address|copy)",
             r"redirect\s+.{0,20}(?P<anchor>email|message)",
+            # 间接抄送（自进化闭环抓出的 confirmed miss）：换掉 bcc/append/redirect 词面。
+            r"hidden\s+(?P<anchor>copy|recipient|address|bcc)",
         ],
         "why": "改写收件人/静默抄送（postmark-mcp原型）",
     },

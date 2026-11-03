@@ -43,10 +43,13 @@ METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
 # The one ablation number the README states about the *current* case file is the
 # headline `run_eval.py --offline` triple. --check pins this: if a future edit
 # to RULES or cases.jsonl moves any of these, the README's headline is stale and
-# the gate goes red. The two ablation *tables* are older snapshots (their
-# denominators are 18 poison / 23 gold rules, not today's 19 / 24), so they are
-# reported, not asserted -- see README's "已复算" notes.
-HEADLINE_EXPECT = {"recall_case": 0.7368, "fpr_benign": 0.0, "recall_rule": 0.7083}
+# the gate goes red. Updated 2026-11-02 after the self-evolution loop surfaced
+# four confirmed misses (summarize, adv_paraphrase_populate/copy,
+# adv_indirect_bcc) and the pattern families were extended (exfil-param
+# synonyms incl. fill/populate/copy ... param, hidden copy) --
+# recall_case 0.7368 -> 0.9474, recall_rule 0.7083 -> 0.875, fpr still 0.0.
+# The two ablation *tables* are reported, not asserted.
+HEADLINE_EXPECT = {"recall_case": 0.9474, "fpr_benign": 0.0, "recall_rule": 0.875}
 
 
 def drop_rules(rules, rule_ids):
