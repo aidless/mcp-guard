@@ -2,8 +2,14 @@
 
 Supported forms:
   Python  types.Tool(name=..., description=..., inputSchema={...})
-          @mcp.tool decorated functions are NOT parsed (runtime registration)
+          @server.tool(name=..., description=...) / @mcp.tool(...) decorators
   TS/JS    { name: 'x', description: `...` | '...' | "..." } object literals
+          server.registerTool("x", { description: ... }, handler)
+
+Not covered (runtime registration; a static extractor cannot see the values):
+  * names built from enum members that are not string literals -- the decorator
+    fallback uses the decorated function's name instead;
+  * inputSchema assembled from zod schemas at runtime -- left as {}.
 
 Usage:
   python tasks/extract_thirdparty.py <checkout-dir> [<checkout-dir> ...] -o tools.json
@@ -27,6 +33,58 @@ DESC_AFTER_NAME = re.compile(
     r"description:\s*(?P<q>`(?:[^`]*)`|'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\")",
     re.S,
 )
+REGISTER_RE = re.compile(
+    r"registerTool\(\s*[\"'](?P<name>[A-Za-z][A-Za-z0-9_.-]{1,})[\"']\s*,",
+    re.S,
+)
+REGISTER_VAR_RE = re.compile(
+    r"registerTool\(\s*(?P<var>[A-Za-z_$][\w$]*)\s*,",
+    re.S,
+)
+NAME_CONST_RE = re.compile(
+    r"const\s+(?P<var>[A-Za-z_$][\w$]*)\s*=\s*[\"'](?P<name>[A-Za-z][A-Za-z0-9_.-]{1,})[\"']",
+)
+DESC_EXPR = re.compile(
+    r"description\s*:\s*(?P<expr>(?:`[^`]*`|\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')"
+    r"(?:\s*\+\s*(?:`[^`]*`|\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'))*)",
+    re.S,
+)
+STR_LIT = re.compile(r"`([^`]*)`|\"((?:[^\"\\]|\\.)*)\"|'((?:[^'\\]|\\.)*)'", re.S)
+
+
+def _literal(node):
+    try:
+        return ast.literal_eval(node)
+    except Exception:
+        return None
+
+
+def _decorator_tools(text: str, out: list[dict]) -> None:
+    """@server.tool(...) / @mcp.tool(...) with the function name as fallback."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for dec in node.decorator_list:
+            if not isinstance(dec, ast.Call):
+                continue
+            fn = getattr(dec.func, "attr", None) or getattr(dec.func, "id", None) or ""
+            if fn != "tool":
+                continue
+            kw = {k.arg: k.value for k in dec.keywords}
+            name = _literal(kw.get("name"))
+            if not isinstance(name, str):
+                name = node.name  # enum-built names cannot be resolved statically
+            desc = _literal(kw.get("description"))
+            schema = _literal(kw.get("inputSchema"))
+            out.append({
+                "name": name,
+                "description": " ".join(desc.split()) if isinstance(desc, str) else "",
+                "inputSchema": schema if isinstance(schema, dict) else {},
+            })
 
 
 def _server_name(path: pathlib.Path) -> str:
@@ -38,6 +96,7 @@ def extract_python(text: str, out: list[dict]) -> None:
         tree = ast.parse(text)
     except SyntaxError:
         return
+    _decorator_tools(text, out)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -68,6 +127,31 @@ def extract_python(text: str, out: list[dict]) -> None:
 
 
 def extract_ts(text: str, out: list[dict]) -> None:
+    # Modern SDK: server.registerTool("name", { description: ... }, handler)
+    for m in REGISTER_RE.finditer(text):
+        # Descriptions can be long template literals (the sequential-thinking
+        # tool's is ~2.8k chars), so the window must comfortably exceed that.
+        tail = text[m.end(): m.end() + 8000]
+        d = DESC_EXPR.search(tail)
+        if not d:
+            continue
+        desc = " ".join("".join(g for g in lit if g) for lit in STR_LIT.findall(d.group("expr")))
+        out.append({"name": m.group("name"),
+                    "description": " ".join(desc.split()),
+                    "inputSchema": {}})
+    # Variable form: registerTool(name, config, handler), where the file defines
+    # `const name = "..."` and `const config = { description: ... }`.
+    rv = REGISTER_VAR_RE.search(text)
+    if rv:
+        nm = NAME_CONST_RE.search(text)
+        d = DESC_EXPR.search(text)
+        if nm and d and nm.group("var") == rv.group("var"):
+            desc = " ".join("".join(g for g in lit if g)
+                            for lit in STR_LIT.findall(d.group("expr")))
+            out.append({"name": nm.group("name"),
+                        "description": " ".join(desc.split()),
+                        "inputSchema": {}})
+    # Older object-literal shape: { name: 'x', description: ... }
     for m in NAME_RE.finditer(text):
         tail = text[m.end(): m.end() + 1200]
         d = DESC_AFTER_NAME.search(tail)

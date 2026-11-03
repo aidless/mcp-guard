@@ -272,6 +272,16 @@ sha256 答不了的问题：
 > 结论：本仓证明"已知模式可被词法规则覆盖、且覆盖边界可被精确说出"，
 > 不声明通用检出率。要用在生产，请把它当第一层过滤 + 人工复核，不是裁决器。
 
+## 真实语料验证
+
+[`reports/REAL_CORPUS_SCAN_20261102.md`](reports/REAL_CORPUS_SCAN_20261102.md)：
+对 `modelcontextprotocol/servers`（`194cc86`）的 7 个 server + 本机 1 个 MCP
+server，共 **64 个真实工具**（63 条非空描述）跑扫描，**0 个被标记**。
+
+这是误报测量，不是召回测量——它只把"零误报"从 11 条手写良性案例扩到 63 条真实
+工具；对"能不能检出真实攻击"没有证据。静态抽取器不覆盖运行时注册与 zod 运行时
+schema，报告里逐条写明了这些边界。
+
 ## 待办
 
 - [x] rug-pull pin 机制（2026-10-14 落地，含字段级 diff）
@@ -281,7 +291,8 @@ sha256 答不了的问题：
 - [x] `new_hits` 改为命中内容级别（2026-10-28：新增 `changed_hits` / `hit_delta` / `alarm`；
   `new_hits` 语义保持不变以兼容旧调用方；`alarm: null` = 没快照、无法判断）
 - [ ] 评测集扩到 50+30，对抗改写（同义/分词/编码）剩余变体
-- [ ] 真实 MCP server.json 批量扫描报告
+- [x] 真实 MCP server.json 批量扫描报告（2026-11-02：64 个真实工具，0 误报；
+  见 `reports/REAL_CORPUS_SCAN_20261102.md`）
 - [ ] 与 agent-redteam 剧本联动（93 测试复用）
 - [x] CI 门禁自证（`scripts/mutation_control.py` + `mutation-control` workflow：
   证明 pytest 门禁在代码被改坏时**必须**变红，而不是把失败吞掉）
