@@ -1,5 +1,11 @@
 # mcp-guard —— MCP 毒工具扫描 + 版本钉选
 
+**An offline, deterministic scanner and hash-pinner for poisoned MCP tool definitions.**
+No model calls, no network, zero runtime dependencies.
+
+[![ci](https://github.com/aidless/mcp-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/aidless/mcp-guard/actions/workflows/ci.yml)
+[![mutation-control](https://github.com/aidless/mcp-guard/actions/workflows/mutation-control.yml/badge.svg)](https://github.com/aidless/mcp-guard/actions/workflows/mutation-control.yml)
+
 企业痛点（2026 实证）：MCP 工具描述是自然语言，模型把它当指令执行。
 MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率最高
 **72.8%**；postmark-mcp 真实投毒（1.0.16 静默 BCC）；Microsoft 2026-06
