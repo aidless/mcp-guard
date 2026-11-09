@@ -123,14 +123,14 @@ python3 -m pytest tests/test_proxy.py -q   # 8 条真实 subprocess 集成测试
 它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与 `agent-trace` 能
 消费的观测记录，不负责模型评分，也不把词法命中当作最终安全裁决。
 
-`--offline` 的实测输出（19 条 poison / 11 条 benign）：
+`--offline` 的实测输出（22 条 poison / 16 条 benign）：
 
 ```json
 {"encoder": "rules-v1", "n_poison": 19, "n_benign": 11,
- "recall_case": 0.9474, "fpr_benign": 0.0, "recall_rule": 0.875}
+ "recall_case": 0.9545, "fpr_benign": 0.0, "recall_rule": 0.8889}
 ```
 
-> `recall_case` 是**这 19 条样本上的**用例覆盖率，不是总体检出率；
+> `recall_case` 是**这 22 条样本上的**用例覆盖率，不是总体检出率；
 > `fpr_benign = 0.0` 是**这 11 条 benign 上**的零误报。样本量很小，
 > 这两个数字只用于回归锁定，不作能力声明。
 
@@ -169,13 +169,13 @@ sha256 答不了的问题：
 没有历史快照时只报 digest 不一致，`fields` 标
 `<unknown: no snapshot stored>`——不猜。
 
-## 离线评测结果（`rules-v1`，30 案例：19 毒 + 11 良）
+## 离线评测结果（`rules-v1`，38 案例：22 毒 + 16 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
-| `recall_case` | 18/19 = 0.9474 | 案例级检出 |
+| `recall_case` | 21/22 = 0.9545 | 案例级检出 |
 | `fpr_benign` | 0/11 = 0.0 | 良性误报 |
-| `recall_rule` | 21/24 = 0.875 | gold 规则命中率 |
+| `recall_rule` | 24/27 = 0.8889 | gold 规则命中率 |
 
 数字比首个版本（20 案例时 0.8333）**下降了，且是应该的**：新增的 7 个案例是
 对抗改写（同义 / 分词破短语 / 间接指令），本来就设计来打穿词法规则。降下来的
@@ -184,7 +184,7 @@ sha256 答不了的问题：
 > **2026-11-02 更新**：对抗改写里有 4 条此前被词法规则漏掉（见下文"已知漏报"）。
 > 自进化闭环把它们识别为 confirmed miss 后，给 `exfil-param` 补了同义改写家族
 > （含 `fill/populate/copy ... param`）、给 `recipient-rewrite` 补了间接抄送，
-> `recall_case` 从 0.7368 → **0.9474**、`recall_rule` 从 0.7083 → **0.875**，
+> `recall_case` 从 0.7368 → **0.9545**、`recall_rule` 从 0.7083 → **0.8889**，
 > `fpr_benign` 仍为 0.0（零误报没被换掉）。
 > 这是把已知边界往回推了一格，不是调参刷分。
 
@@ -196,11 +196,11 @@ sha256 答不了的问题：
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
 
 消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算，一条命令可复算）。
-下表是对**当前** `cases.jsonl`（30 案例：19 毒 / 11 良，24 条 gold 规则）的实测：
+下表是对**当前** `cases.jsonl`（38 案例：22 毒 / 16 良，27 条 gold 规则）的实测：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 全部规则（有 `encoded-exfil`） | 18/19 = 0.9474 | 0/11 = 0.0 | 21/24 = 0.875 |
+| 全部规则（有 `encoded-exfil`） | 21/22 = 0.9545 | 0/16 = 0.0 | 24/27 = 0.8889 |
 | 去掉 `encoded-exfil` | 17/19 = 0.8947 | 0/11 = 0.0 | 20/24 = 0.8333 |
 
 > 复算命令：`python3 scripts/measure_rule_ablation.py`（加 `--markdown` 出这张表，
@@ -234,7 +234,7 @@ sha256 答不了的问题：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 有扩展后的 `secret-read` | 18/19 = 0.9474 | 0/11 = 0.0 | 21/24 = 0.875 |
+| 有扩展后的 `secret-read` | 21/22 = 0.9545 | 0/16 = 0.0 | 24/27 = 0.8889 |
 | 只有 `~/.ssh` 族（收紧） | 16/19 = 0.8421 | 0/11 = 0.0 | 18/24 = 0.75 |
 
 > 这两行和上表由同一条命令产出、互相一致；`fpr_benign` 在所有消融下都保持 0，

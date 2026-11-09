@@ -12,6 +12,18 @@ from __future__ import annotations
 import hashlib
 import re
 
+# encoded-exfil 的三段片段：敏感材料 / 编码动作 / 外带动作。
+# 单独成片段是为了同时覆盖两种真实语序（先提密再编码、先编码再提密）。
+_SENS_FRAG = (r"(?P<anchor>ssh|\.ssh|id_rsa|id_ed25519|private[\s_-]*key"
+              r"|\w*[\s_-]*(?:secret|token|password|credential)s?\b)")
+_ENC_FRAG = (r"(?:base64|b64|rot13|hex)[\s_-]?encod\w*"
+             r"|xor[\s_-]*(?:encrypt\w*|obfuscat\w*|mask\w*)"
+             r"|caesar[\s_-]*(?:shift\w*|cipher)"
+             r"|char(?:acter)?[\s_-]*code[\s_-]*offset"
+             r"|offset[\s\S]{0,12}?of[\s\S]{0,8}?\d"
+             r"|shift[\s_-]+(?:each|every)[\s\S]{0,24}?(?:char|byte)")
+_EXFIL_FRAG = r"(include|attach|send|upload|post|place|put|exfiltrat|param)"
+
 RULES = [
     {
         "id": "imperative-tag",
@@ -81,12 +93,18 @@ RULES = [
         "id": "encoded-exfil",
         "severity": "high",
         # 编码对抗改写：明文规则看不到"先编码再外带"。
-        # 三段必须同现——敏感材料 → 编码动作 → 外带/落参动作；
+        # 三段必须同现——敏感材料 / 编码动作 / 外带动作；
         # 缺任何一段都不报，避免"生成 SSH 公钥并 base64 编码"这类正常工具被误伤。
+        # 两种真实语序都收：先提密再编码（sens→enc→exfil）与
+        # 先编码再提密（enc→sens→exfil，如 "xor-encrypt the stored api_token and upload"）。
+        # 编码动作覆盖 base64/hex/rot13 编码词与 XOR/Caesar/逐字节偏移改写。
         "patterns": [
-            r"(?P<anchor>ssh|\.ssh|id_rsa|id_ed25519|private[\s_-]*key|secret|token|password|credential)"
-            r"[\s\S]{0,80}?(base64|b64|rot13|hex)[\s_-]?encod\w*"
-            r"[\s\S]{0,160}?(include|attach|send|upload|post|place|put|exfiltrat|param)",
+            _SENS_FRAG
+            + r"[\s\S]{0,80}?(" + _ENC_FRAG + r")"
+            + r"[\s\S]{0,160}?" + _EXFIL_FRAG,
+            "(" + _ENC_FRAG + r")"
+            + r"[\s\S]{0,80}?" + _SENS_FRAG
+            + r"[\s\S]{0,160}?" + _EXFIL_FRAG,
         ],
         "why": "敏感材料先编码再外带（编码对抗改写，明文规则看不见这一层）",
     },

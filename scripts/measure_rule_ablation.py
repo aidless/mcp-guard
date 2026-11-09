@@ -48,8 +48,14 @@ METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
 # adv_indirect_bcc) and the pattern families were extended (exfil-param
 # synonyms incl. fill/populate/copy ... param, hidden copy) --
 # recall_case 0.7368 -> 0.9474, recall_rule 0.7083 -> 0.875, fpr still 0.0.
-# The two ablation *tables* are reported, not asserted.
-HEADLINE_EXPECT = {"recall_case": 0.9474, "fpr_benign": 0.0, "recall_rule": 0.875}
+# Updated 2026-11-09 after P2.1: corpus 30 -> 38 (22 poison / 16 benign, 27 gold
+# rules), encoded-exfil encoding-action vocabulary extended (XOR / Caesar /
+# per-byte offset / shift-each) plus the enc->sens ordering, sensitive-word
+# prefix tolerance (api_token). recall_case 0.9474 -> 0.9545 (21/22, the only
+# case-level miss is the declared run_cmd boundary), recall_rule 0.875 ->
+# 0.8889 (24/27), fpr still 0.0. The two ablation *tables* are reported, not
+# asserted.
+HEADLINE_EXPECT = {"recall_case": 0.9545, "fpr_benign": 0.0, "recall_rule": 0.8889}
 
 
 def drop_rules(rules, rule_ids):
