@@ -27,6 +27,7 @@ from .capability import (
     annotation_violations,
     scan_capability,
     summarise,
+    tier_mismatches,
 )
 
 
@@ -54,10 +55,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="存在 T3 破坏或任意执行能力时退出码 1（隐含 --capability）")
     ap.add_argument("--require-annotations", action="store_true",
                     help="能写入/破坏的工具缺少显式 readOnlyHint/destructiveHint 时退出码 1（隐含 --capability）")
+    ap.add_argument("--annotation-report", default=None, type=pathlib.Path, metavar="PATH",
+                    help="把注解门结果（violations/warnings/tier_mismatches）写成 JSON 工件；只出报告不改变退出码")
     args = ap.parse_args(argv)
 
     tools = load_tools(args.tools)
-    want_capability = args.capability or args.fail_on_capability or args.require_annotations
+    want_capability = (args.capability or args.fail_on_capability
+                       or args.require_annotations or args.annotation_report)
     capability_results: list[dict] = []
 
     pinned: dict[str, str] = {}
@@ -93,14 +97,29 @@ def main(argv: list[str] | None = None) -> int:
     summary = {"scanned": len(tools), "flagged": flagged}
     violations: list[dict] = []
     warnings: list[dict] = []
+    mismatches: list[dict] = []
     if want_capability:
         summary["capability"] = summarise(capability_results)
-    if args.require_annotations:
+    if args.require_annotations or args.annotation_report:
         violations, warnings = annotation_violations(tools, capability_results)
+        mismatches = tier_mismatches(tools, capability_results)
+    if args.require_annotations:
         summary["annotation_violations"] = len(violations)
         summary["annotation_warnings"] = len(warnings)
         print(json.dumps({"annotations": {"violations": violations, "warnings": warnings}},
                          ensure_ascii=False))
+    if args.annotation_report:
+        try:
+            args.annotation_report.write_text(
+                json.dumps({"violations": violations, "warnings": warnings,
+                            "tier_mismatches": mismatches},
+                           ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8")
+        except OSError as exc:
+            print(json.dumps({"status": "NOT_ASSESSED",
+                              "error": f"annotation-report unwritable: {exc}"}),
+                  file=sys.stderr)
+            return 2
     print(json.dumps(summary, ensure_ascii=False), file=sys.stderr)
 
     destructive = summary.get("capability", {}).get("destructive", [])
