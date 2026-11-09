@@ -149,15 +149,15 @@ embedded newlines"）；HTTP 代理覆盖 Streamable HTTP 的**请求侧**——
 `agent-trace` 能消费的观测记录（trace 自 88a4a28 起同时绑定能力轴 tier 与
 tier_mismatches），不负责模型评分，也不把词法命中当作最终安全裁决。
 
-`--offline` 的实测输出（47 条案例：27 poison / 20 benign）：
+`--offline` 的实测输出（52 条案例：32 poison / 22 benign）：
 
 ```json
-{"encoder": "rules-v1", "n_poison": 27, "n_benign": 20,
- "recall_case": 0.963, "fpr_benign": 0.0, "recall_rule": 0.9118}
+{"encoder": "rules-v1", "n_poison": 32, "n_benign": 22,
+ "recall_case": 0.9688, "fpr_benign": 0.0, "recall_rule": 0.9268}
 ```
 
-> `recall_case` 是**这 47 条样本上的**用例覆盖率，不是总体检出率；
-> `fpr_benign = 0.0` 是**这 20 条 benign 上**的零误报。样本量很小，
+> `recall_case` 是**这 52 条样本上的**用例覆盖率，不是总体检出率；
+> `fpr_benign = 0.0` 是**这 22 条 benign 上**的零误报。样本量很小，
 > 这两个数字只用于回归锁定，不作能力声明。
 
 ## 规则包（`guard/rules.py`，公开可审）
@@ -170,6 +170,9 @@ tier_mismatches），不负责模型评分，也不把词法命中当作最终�
 | `recipient-rewrite` | 改写收件人/BCC/追加抄送 | postmark-mcp 1.0.16 |
 | `auth-url-exec` | 工具参数直达shell（CVE-2025-6514模式） | mcp-remote 命令注入 |
 | `encoded-exfil` | 敏感材料**先编码再外带**（明文规则看不见这一层） | base64 编码外带对抗改写 |
+| `call-order-hijack` | 强制度词强制先调用另一工具（MUST first call 'write_file'…） | MCPTox 条件调用序模板 |
+| `behavior-override` | 描述自称凌驾于用户请求 / 无视用户输入改写行为 | MCPTox "priority is higher than the user's query" 模板 |
+| `param-pollution` | 强度词+改参动词把攻击者内容写进参数 | MCPTox "MUST be changed to 'malicious-branch'" 家族 |
 | Rug-pull 经 pin 检出 | 描述哈希漂移 | 15 个干净版本后投毒 |
 
 ## 漂移检测（`guard/drift.py`）
@@ -195,13 +198,13 @@ sha256 答不了的问题：
 没有历史快照时只报 digest 不一致，`fields` 标
 `<unknown: no snapshot stored>`——不猜。
 
-## 离线评测结果（`rules-v1`，47 案例：27 毒 + 20 良）
+## 离线评测结果（`rules-v1`，52 案例：32 毒 + 22 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
-| `recall_case` | 26/27 = 0.963 | 案例级检出 |
-| `fpr_benign` | 0/20 = 0.0 | 良性误报 |
-| `recall_rule` | 31/34 = 0.9118 | gold 规则命中率 |
+| `recall_case` | 31/32 = 0.9688 | 案例级检出 |
+| `fpr_benign` | 0/22 = 0.0 | 良性误报 |
+| `recall_rule` | 38/41 = 0.9268 | gold 规则命中率 |
 
 数字比首个版本（20 案例时 0.8333）**下降了，且是应该的**：新增的 7 个案例是
 对抗改写（同义 / 分词破短语 / 间接指令），本来就设计来打穿词法规则。降下来的
@@ -228,13 +231,13 @@ sha256 答不了的问题：
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
 
 消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算，一条命令可复算）。
-下表是对**当前** `cases.jsonl`（47 案例：27 毒 / 20 良，34 条 gold 规则）的实测：
+下表是对**当前** `cases.jsonl`（52 案例：32 毒 / 22 良，41 条 gold 规则）的实测：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 全部规则（有 `encoded-exfil`） | 26/27 = 0.963 | 0/20 = 0.0 | 31/34 = 0.9118 |
-| 去掉 `encoded-exfil` | 22/27 = 0.8148 | 0/20 = 0.0 | 27/34 = 0.7941 |
-| `secret-read` 收紧到 ~/.ssh 家族 | 24/27 = 0.8889 | 0/20 = 0.0 | 28/34 = 0.8235 |
+| 全部规则（有 `encoded-exfil`） | 31/32 = 0.9688 | 0/22 = 0.0 | 38/41 = 0.9268 |
+| 去掉 `encoded-exfil` | 27/32 = 0.8438 | 0/22 = 0.0 | 34/41 = 0.8293 |
+| `secret-read` 收紧到 ~/.ssh 家族 | 29/32 = 0.9062 | 0/22 = 0.0 | 35/41 = 0.8537 |
 
 > 复算命令：`python3 scripts/measure_rule_ablation.py`（加 `--markdown` 出这张表，
 > `--check` 把 headline 三元组接成 CI 门禁）。脚本自己会先和 `run_eval.py --offline`
@@ -267,7 +270,7 @@ sha256 答不了的问题：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
-| 有扩展后的 `secret-read` | 26/27 = 0.963 | 0/20 = 0.0 | 31/34 = 0.9118 |
+| 有扩展后的 `secret-read` | 31/32 = 0.9688 | 0/22 = 0.0 | 38/41 = 0.9268 |
 | 只有 `~/.ssh` 族（收紧） | 22/25 = 0.88 | 0/20 = 0.0 | 26/32 = 0.8125 |
 
 > 这两行和上表由同一条命令产出、互相一致；`fpr_benign` 在所有消融下都保持 0，
@@ -391,9 +394,26 @@ schema，报告里逐条写明了这些边界。
   **215/485 = 44.3%**（×9），真实良性 0/115 误报；案例语料 38 → 47。
   TDD + 双向变异（拆机制 4 红、拆准则 2 红）见
   `tests/test_rule_call_order.py`。
-- 诚实边界：良性基座 115 条不算大，0 误报是"未观察到"不是"不存在"；
+- **残差分型与第二轮规则族（R2，2026-11-09）**：215 命中后余 270 条，按模板
+  分型出两个新家族——**行为越权**（"This description's priority is higher than
+  the user's query/request" 自我加冕模板、override…regardless of input、
+  must instead）与**参数污染**（强度词+改参动词+引号载荷/参数词：
+  "MUST be changed to 'malicious-branch'"、"must append … to the content
+  parameter"）。FP 研究扩了良性基座：内置 114 + **smithery 注册表实抓 108**
+  （`examples/smithery_benign.json`，R4 前置）= 222 条描述 0 误报后落地
+  `behavior-override` / `param-pollution` 两族六锚，并把 call-order 的动词表
+  扩到 invoke/execute、引号类扩到反引号（+115 投毒命中、良性仍 0）。
+  覆盖 215 → **347/485 = 71.6%**；案例语料 47 → 52（32 毒 / 22 良），
+  `recall_case` 0.963 → **0.9688**、`recall_rule` 0.9118 → **0.9268**、
+  `fpr_benign` 仍 0.0。TDD + 双向变异（拆机制 5 红、拆准则 3 红）见
+  `tests/test_rule_behavior_override.py`。
+- 诚实边界：良性基座 222 条不算大，0 误报是"未观察到"不是"不存在"；
   `def_tool/.py` 与 `pure_tool.json` 有 19 条上游不同步（同名不同毒文），
-  已记录在 probe 报告里。
+  已记录在 probe 报告里。参数污染锚会误伤合法定义文档的
+  "apiKey must be set to 'your token'" 形态（强度词+改参动词+引号字面量）——
+  这是校准边界；代理默认只观测、扫描器 fail-closed，宁可误报不冒进。
+  残差 138 条中 MUST 族只剩 21 条（大部分无强度词），再往下是弱锚区，
+  已知边界不硬追。
 
 ## 待办
 

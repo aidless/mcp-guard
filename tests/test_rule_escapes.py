@@ -73,12 +73,12 @@ def test_corpus_entries_present():
 
 
 def test_headline_moves_and_fpr_stays_zero():
-    """评测口径：27 毒 / 20 良，两毒新接住，良性零误报。"""
+    """评测口径：32 毒 / 22 良（R2 扩语料），良性零误报，headline 不回退。"""
     r = subprocess.run([sys.executable, "run_eval.py", "--offline"],
                        cwd=REPO, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)
-    assert out["n_poison"] == 27
-    assert out["n_benign"] == 20
+    assert out["n_poison"] == 32
+    assert out["n_benign"] == 22
     assert out["fpr_benign"] == 0.0
     assert out["recall_case"] >= 0.96

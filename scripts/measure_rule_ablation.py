@@ -60,7 +60,7 @@ METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
 # case-level miss is the declared run_cmd boundary), recall_rule 0.875 ->
 # 0.8889 (24/27), fpr still 0.0. The two ablation *tables* are reported, not
 # asserted.
-HEADLINE_EXPECT = {"recall_case": 0.963, "fpr_benign": 0.0, "recall_rule": 0.9118}
+HEADLINE_EXPECT = {"recall_case": 0.9688, "fpr_benign": 0.0, "recall_rule": 0.9268}
 
 
 def drop_rules(rules, rule_ids):
