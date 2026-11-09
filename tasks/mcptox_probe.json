@@ -45,5 +45,13 @@
   "/tmp/mcptox_pure.json": "resumed full download (valid JSON)",
   "/tmp/mcptox_corpus.json": "scan_corpus.py input shape",
   "/tmp/mcptox_scan.json": "smoke scan output"
+ },
+ "def_tool_crosscheck": {
+  "method": "git clone --depth 1 + AST extraction of 485 FastMCP docstrings",
+  "extracted": 485,
+  "name_plus_desc_match_with_pure_tool_json": 438,
+  "desc_differs": 19,
+  "desc_differs_note": "same tool name, DIFFERENT poisoning text in .py vs JSON (e.g. simple_addition: py mandates put_schedules, js mandates scrape_webpage) -- the two repo sources are not in sync; recorded as upstream data-quality observation",
+  "smoke_scan_on_py_corpus": "24/485 flagged (identical rate to JSON corpus)"
  }
 }
