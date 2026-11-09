@@ -36,6 +36,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+from guard.rules import unescape_text
+
 from guard import rules as rules_mod  # noqa: E402
 
 METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
@@ -48,6 +50,9 @@ METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
 # adv_indirect_bcc) and the pattern families were extended (exfil-param
 # synonyms incl. fill/populate/copy ... param, hidden copy) --
 # recall_case 0.7368 -> 0.9474, recall_rule 0.7083 -> 0.875, fpr still 0.0.
+# Updated 2026-11-09 after B3 (unicode/hex escape decode pass): corpus 44 -> 47
+# (27 poison / 20 benign, 34 gold rules). recall_case 0.96 -> 0.963 (26/27),
+# recall_rule 0.9062 -> 0.9118 (31/34), fpr still 0.0.
 # Updated 2026-11-09 after P2.1: corpus 30 -> 38 (22 poison / 16 benign, 27 gold
 # rules), encoded-exfil encoding-action vocabulary extended (XOR / Caesar /
 # per-byte offset / shift-each) plus the enc->sens ordering, sensitive-word
@@ -55,7 +60,7 @@ METRIC_KEYS = ("recall_case", "fpr_benign", "recall_rule")
 # case-level miss is the declared run_cmd boundary), recall_rule 0.875 ->
 # 0.8889 (24/27), fpr still 0.0. The two ablation *tables* are reported, not
 # asserted.
-HEADLINE_EXPECT = {"recall_case": 0.96, "fpr_benign": 0.0, "recall_rule": 0.9062}
+HEADLINE_EXPECT = {"recall_case": 0.963, "fpr_benign": 0.0, "recall_rule": 0.9118}
 
 
 def drop_rules(rules, rule_ids):
@@ -90,9 +95,13 @@ def _score_cases(compiled, cases):
     tp = fp = rule_hits = 0
     for c in cases:
         text = json.dumps(c, sort_keys=True, ensure_ascii=False)
+        # B3 对齐：与 scan_text 同样扫「原文 + 解码转义」两遍。json.dumps 会把
+        # 字面反斜杠再转义一次，不补解码第二遍就会漏掉转义对抗案例。
+        decoded = unescape_text(text)
         fired = set()
         for rid, _sev, pats, _why in compiled:
-            if any(p.search(text) for p in pats):
+            if any(p.search(text) for p in pats) or (
+                    decoded != text and any(p.search(decoded) for p in pats)):
                 fired.add(rid)
         if fired:
             if c["label"] == "poison":

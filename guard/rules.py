@@ -136,9 +136,24 @@ RULES = [
 _COMPILED = [(r["id"], r["severity"], [re.compile(p, re.I) for p in r["patterns"]], r["why"])
              for r in RULES]
 
+# P-B3：转义对抗——\uXXXX 与 \xXX 藏写动作词是词法规则的天然盲区。
+# _UNESCAPE_RE 只匹配合法的完整转义（裸 "backslash-u" 散文不命中）。
+_UNESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})")
+
+
+def unescape_text(text: str) -> str:
+    """Decode unicode/hex escape sequences (public: ablation machinery
+    shares the decode pass so its re-implementation of the scan loop cannot
+    drift from scan_text's evasion defense)."""
+    return _UNESCAPE_RE.sub(
+        lambda m: chr(int(m.group(1) or m.group(2), 16)), text or "")
+
 
 def scan_text(text: str) -> list[dict]:
-    """返回命中列表；每条带一个 `anchor`（可比、不受 80 字符截断影响）。"""
+    """返回命中列表；每条带一个 `anchor`（可比、不受 80 字符截断影响）。
+
+    扫两遍：原文 + 解码 \\uXXXX/\\xXX 后的文本，命中取并集（按 rule+anchor
+    去重）。解码只做一层，防止转义回环。"""
     hits = []
     for rid, sev, pats, why in _COMPILED:
         for p in pats:
@@ -154,6 +169,14 @@ def scan_text(text: str) -> list[dict]:
                 hits.append({"rule": rid, "severity": sev,
                              "match": m.group(0)[:80], "anchor": anchor, "why": why})
                 break
+    # 第二遍：转义解码文本（原文与解码相同时此遍无增益且开销可忽略）
+    decoded = unescape_text(text or "")
+    if decoded != (text or ""):
+        seen = {(h["rule"], h["anchor"]) for h in hits}
+        for extra in scan_text(decoded):
+            if (extra["rule"], extra["anchor"]) not in seen:
+                extra["match"] = "decoded: " + extra["match"][:70]
+                hits.append(extra)
     return hits
 
 
