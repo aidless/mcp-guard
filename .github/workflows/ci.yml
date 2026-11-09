@@ -16,6 +16,8 @@ jobs:
         run: python -m pytest tests/test_proxy.py -q
       - name: Capability rulepack agrees with agent-desktop case ledger
         run: python scripts/capability_crosscheck.py
+      - name: Every rule in the pack demonstrably fires (prove-red battery)
+        run: python scripts/rule_prove_red.py
       - run: python run_eval.py --offline
       - name: README ablation numbers stay recomputable
         run: python scripts/measure_rule_ablation.py --check
