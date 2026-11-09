@@ -7,14 +7,17 @@ MCP 2025-06-18 起 Streamable HTTP 是推荐的远程传输：客户端 POST JSO
 - tools/list：转发到上游 → 扫描响应 → 落 tool_manifest.json /
   capability_manifest.json → 按旗标以 JSON-RPC error 替换响应。
 - tools/call：先过门（allowlist / policy.allow_tools / max_tier / deny-regex /
-  batch 内层）再转发；阻断时回 -32002，不触碰上游。
+  batch 内层）再转发；阻断时回 -32002，不触碰上游。放行的调用转发后，其
+  响应 result.content[].text 过同一套投毒规则（P-R1）：默认只观测，命中记进
+  tool_calls.json；--block-response-hits 命中即以 -32007 替换响应不转发。
 - 其余方法原样中继。
 
-与 stdio 共享同一套纯决策函数（guard.proxy.tools_scan / call_decision），
-两个传输面的门禁语义不会漂移。
+与 stdio 共享同一套纯决策函数（guard.proxy.tools_scan / call_decision /
+response_scan），两个传输面的门禁语义不会漂移。
 
-诚实边界：请求侧门禁；上游响应（含 text/event-stream）原样中继，不做响应侧
-重扫；无鉴权、无会话管理（上游回什么头就转发什么头）；仅 JSON 断言覆盖。
+诚实边界：tools/list 与 tools/call 的 JSON 响应会被扫描；text/event-stream
+（SSE 分帧）原样中继不做重扫；无鉴权、无会话管理（上游回什么头就转发什么头）；
+仅 JSON 断言覆盖。
 """
 from __future__ import annotations
 
@@ -25,13 +28,17 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from types import SimpleNamespace
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from guard.capability import TIER_RANK  # noqa: E402
-from guard.proxy import Policy, call_decision, tools_scan  # noqa: E402
+from guard.proxy import (  # noqa: E402
+    Policy,
+    call_decision,
+    response_scan,
+    tools_scan,
+)
 
 
 class GateState:
@@ -45,6 +52,7 @@ class GateState:
         self.block_batch_destructive = flags["block_batch_destructive"]
         self.require_annotations = flags["require_annotations"]
         self.block_tier_mismatch = flags["block_tier_mismatch"]
+        self.block_response_hits = flags["block_response_hits"]
         self.store_raw_args = flags["store_raw_args"]
         self.allowlist: set[str] | None = None
         self.capabilities: list[dict] = []
@@ -86,14 +94,36 @@ class GateState:
         return None
 
     # -- tools/call gate ------------------------------------------------
-    def handle_call(self, msg: dict) -> dict | None:
+    def handle_call(self, msg: dict) -> tuple[dict, dict | None]:
+        """Gate a tools/call request. Returns (entry, error-or-None); the entry
+        is also appended to self.calls (flushed)."""
         entry, reason = call_decision(self, msg.get("params", {}) or {})
         self.calls.append(entry)
         self._flush_calls()
         if reason:
-            return {"jsonrpc": "2.0", "id": msg.get("id"),
-                    "error": {"code": -32002,
-                              "message": "mcp-guard blocked tools/call: " + reason}}
+            return entry, {"jsonrpc": "2.0", "id": msg.get("id"),
+                           "error": {"code": -32002,
+                                     "message": "mcp-guard blocked tools/call: " + reason}}
+        return entry, None
+
+    def handle_call_response(self, entry: dict | None, resp, msg_id) -> dict | None:
+        """P-R1: scan an upstream tools/call RESULT. Writes the observation
+        fields onto the call entry (observe-only default); with
+        --block-response-hits a flagged result becomes a -32007 error to
+        relay instead of the upstream response."""
+        result = resp.get("result") if isinstance(resp, dict) else None
+        scan = response_scan(result)
+        if entry is not None:
+            entry["response_texts_scanned"] = scan["texts_scanned"]
+            entry["response_flagged"] = scan["flagged"]
+            entry["response_rule_ids"] = scan["rule_ids"]
+            self._flush_calls()
+        if scan["flagged"] and self.block_response_hits:
+            return {"jsonrpc": "2.0", "id": msg_id,
+                    "error": {"code": -32007,
+                              "message": "mcp-guard blocked tools/call result: response content "
+                                         "matched rule(s) " + ", ".join(scan["rule_ids"])
+                                         + " (result-content injection)"}}
         return None
 
     def _flush_calls(self) -> None:
@@ -135,14 +165,28 @@ def make_handler(upstream: str, state: GateState):
             single = isinstance(msg, dict)
             messages = [msg] if single else msg
             replacements: dict[int, dict] = {}
+            relays: dict[int, tuple[int, str, bytes]] = {}
             for idx, m in enumerate(messages):
                 if not isinstance(m, dict):
                     continue
                 method = m.get("method")
                 if method == "tools/call":
-                    blocked = state.handle_call(m)
+                    entry, blocked = state.handle_call(m)
                     if blocked is not None:
                         replacements[idx] = blocked
+                        continue
+                    # 放行：转发，然后扫描响应（P-R1）
+                    payload = body if single else json.dumps(m).encode()
+                    status, ctype, up_body = _forward(upstream, payload, dict(self.headers))
+                    try:
+                        resp = json.loads(up_body)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        resp = None
+                    err = state.handle_call_response(entry, resp, m.get("id"))
+                    if err is not None:
+                        replacements[idx] = err
+                    else:
+                        relays[idx] = (status, ctype, up_body)
                 elif method == "tools/list":
                     status, ctype, up_body = _forward(upstream, body if single else json.dumps(m).encode(), dict(self.headers))
                     try:
@@ -155,28 +199,35 @@ def make_handler(upstream: str, state: GateState):
                     error = state.handle_tools_response(resp)
                     if error is not None:
                         replacements[idx] = error
+                    else:
+                        relays[idx] = (status, ctype, up_body)
 
-            if replacements:
+            if replacements or relays:
                 # 阻断：不中继上游响应（tools/list 已转发仅用于取证扫描），
-                # 用 JSON-RPC error 原位替换。
+                # 用 JSON-RPC error 原位替换；放行的带其上游响应中继。
                 if single:
-                    self._json_response(200, replacements.get(0, msg))
+                    if 0 in replacements:
+                        self._json_response(200, replacements[0])
+                    else:
+                        status, ctype, up_body = relays[0]
+                        self._relay(status, ctype, up_body)
                 else:
                     out = []
                     for idx, m in enumerate(messages):
-                        out.append(replacements.get(idx, m) if isinstance(m, dict) else m)
+                        if idx in replacements:
+                            out.append(replacements[idx])
+                        elif idx in relays:
+                            _, _, up_body = relays[idx]
+                            out.append(json.loads(up_body) if up_body else None)
+                        else:
+                            out.append(m)
                     self._json_response(200, out)
                 return
 
-            # 全部放行：原样转发（逐条或整批）
+            # 其余方法：原样转发（逐条或整批）
             if single:
                 status, ctype, up_body = _forward(upstream, body, dict(self.headers))
-                self.send_response(status)
-                self.send_header("Content-Type", ctype)
-                self.send_header("Content-Length", str(len(up_body)))
-                self.end_headers()
-                if self.command != "HEAD":
-                    self.wfile.write(up_body)
+                self._relay(status, ctype, up_body)
             else:
                 out = []
                 for m in messages:
@@ -189,6 +240,14 @@ def make_handler(upstream: str, state: GateState):
             self._json_response(405, {"jsonrpc": "2.0", "id": None,
                                       "error": {"code": -32005,
                                                 "message": "mcp-guard: GET not supported (POST JSON-RPC only)"}})
+
+        def _relay(self, status: int, ctype: str, up_body: bytes) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(up_body)))
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(up_body)
 
         def _json_response(self, status: int, doc) -> None:
             payload = json.dumps(doc, ensure_ascii=False).encode()
@@ -224,6 +283,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--block-batch-destructive", action="store_true")
     ap.add_argument("--require-annotations", action="store_true")
     ap.add_argument("--block-tier-mismatch", action="store_true")
+    ap.add_argument("--block-response-hits", action="store_true",
+                    help="scan tools/call RESULT text content with the poison rules; a flagged result is replaced with a JSON-RPC error (-32007) instead of being relayed (default: observe-only, hits recorded in tool_calls.json)")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
     args = ap.parse_args(argv)
@@ -244,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
                                     or declared.get("batch_destructive", False)),
         "require_annotations": args.require_annotations or declared.get("require_annotations", False),
         "block_tier_mismatch": args.block_tier_mismatch or declared.get("tier_mismatch", False),
+        "block_response_hits": args.block_response_hits or declared.get("response_hits", False),
         "store_raw_args": args.store_raw_args,
     }
     state = GateState(args.log_dir, policy, flags)

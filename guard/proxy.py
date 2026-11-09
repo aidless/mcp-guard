@@ -49,6 +49,34 @@ from .capability import (
     unwrap_payload,
 )
 from .capability import BATCH_KEYS
+from .rules import scan_text
+
+
+def response_scan(result) -> dict:
+    """P-R1: scan the TEXT CONTENT of a tools/call RESULT with the same poison
+    rules used on tool descriptions. Shared by the stdio and the Streamable
+    HTTP transports. Default posture is observe-only; --block-response-hits
+    turns a flagged result into a JSON-RPC error instead of relaying it.
+
+    Only `content[].text` entries are scanned (the standard result text
+    channel); non-text content parts are counted, not judged.
+    """
+    texts: list[str] = []
+    if isinstance(result, dict):
+        content = result.get("content")
+        if isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text" \
+                        and isinstance(part.get("text"), str):
+                    texts.append(part["text"])
+    rule_ids: set[str] = set()
+    hits: list[dict] = []
+    for text in texts:
+        for h in scan_text(text):
+            rule_ids.add(h["rule"])
+            hits.append(h)
+    return {"texts_scanned": len(texts), "flagged": bool(rule_ids),
+            "rule_ids": sorted(rule_ids), "hits": hits}
 
 
 def _canon_args(args: dict) -> str:
@@ -210,7 +238,8 @@ class Proxy:
                  store_raw_args: bool = False,
                  block_batch_destructive: bool = False,
                  require_annotations: bool = False,
-                 block_tier_mismatch: bool = False):
+                 block_tier_mismatch: bool = False,
+                 block_response_hits: bool = False):
         self.upstream = upstream
         self.log_dir = log_dir
         self.policy = policy
@@ -219,6 +248,7 @@ class Proxy:
         self.block_batch_destructive = block_batch_destructive
         self.require_annotations = require_annotations
         self.block_tier_mismatch = block_tier_mismatch
+        self.block_response_hits = block_response_hits
         self.store_raw_args = store_raw_args
         self.allowlist: set[str] | None = None
         self.manifest: dict | None = None
@@ -307,9 +337,13 @@ class Proxy:
             method = msg.get("method")
             if method == "tools/list" and "id" in msg:
                 with self.lock:
-                    self.pending[msg["id"]] = method
-            elif method == "tools/call" and not self._handle_call(msg):
-                continue
+                    self.pending[msg["id"]] = ("tools/list", None)
+            elif method == "tools/call" and "id" in msg:
+                seq = len(self.calls)  # _handle_call appends exactly one entry
+                if not self._handle_call(msg):
+                    continue
+                with self.lock:
+                    self.pending[msg["id"]] = ("tools/call", seq)
             self._to_upstream(msg)
         if self.proc and self.proc.stdin:
             self.proc.stdin.close()
@@ -328,13 +362,30 @@ class Proxy:
                     sys.stdout.flush()
                 continue
             msg_id = msg.get("id")
-            method = None
+            pending = None
             if msg_id is not None:
                 with self.lock:
-                    method = self.pending.pop(msg_id, None)
+                    pending = self.pending.pop(msg_id, None)
+            method = pending[0] if pending else None
             if method == "tools/list":
                 if not self._handle_tools(msg_id, msg.get("result", {})):
                     continue
+            elif method == "tools/call":
+                seq = pending[1]
+                result = msg.get("result")
+                if isinstance(result, dict):
+                    scan = response_scan(result)
+                    entry = self.calls[seq]
+                    entry["response_texts_scanned"] = scan["texts_scanned"]
+                    entry["response_flagged"] = scan["flagged"]
+                    entry["response_rule_ids"] = scan["rule_ids"]
+                    if scan["flagged"] and self.block_response_hits:
+                        self._error(msg_id, -32007,
+                                    "mcp-guard blocked tools/call result: response content "
+                                    "matched rule(s) " + ", ".join(scan["rule_ids"])
+                                    + " (result-content injection)")
+                        self._flush_calls()
+                        continue
             self._to_client(msg)
 
     def run(self) -> int:
@@ -384,6 +435,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="refuse tools/list when mutating tools lack explicit capability annotations")
     ap.add_argument("--block-tier-mismatch", action="store_true",
                     help="refuse tools/list when annotations explicitly contradict the capability tier (readOnlyHint=true on a T2/T3 tool, destructiveHint=false on a T3 tool)")
+    ap.add_argument("--block-response-hits", action="store_true",
+                    help="scan tools/call RESULT text content with the poison rules; a flagged result is replaced with a JSON-RPC error (-32007) instead of being relayed (default: observe-only, hits recorded in tool_calls.json)")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
     ap.add_argument("upstream", nargs=argparse.REMAINDER,
@@ -412,7 +465,9 @@ def main(argv: list[str] | None = None) -> int:
                   require_annotations=(args.require_annotations
                                        or declared.get("require_annotations", False)),
                   block_tier_mismatch=(args.block_tier_mismatch
-                                       or declared.get("tier_mismatch", False)))
+                                       or declared.get("tier_mismatch", False)),
+                  block_response_hits=(args.block_response_hits
+                                       or declared.get("response_hits", False)))
     return proxy.run()
 
 
