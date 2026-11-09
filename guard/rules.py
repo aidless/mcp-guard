@@ -108,6 +108,29 @@ RULES = [
         ],
         "why": "敏感材料先编码再外带（编码对抗改写，明文规则看不见这一层）",
     },
+    {
+        # 2026-11-09 P-A1：条件调用序劫持（MCPTox 主导模板族，arXiv 2508.14925）。
+        # FP 研究（tasks/mcptox_probe.json）：官方 67 + 第三方 48 条真实良性描述
+        # 中三条锚 0 命中；投毒语料 138/485 = 28.5% 命中。锚要求"强度词 + 调用
+        # 另一工具"同时成立，良性编排散文（"Use before download_paper to assess
+        # relevance"、"oldText must match"）因缺强度+调用组合而不触发。
+        "id": "call-order-hijack",
+        "severity": "high",
+        "patterns": [
+            # before ... must ... call/use/run（MCPTox 模板 #1：
+            # "Before using the 'read_file' tool ..., you MUST first call 'write_file' ..."）
+            r"before[^.\n]{0,160}?\b(?P<anchor>must)\b[^.\n]{0,40}?"
+            r"\b(call|use|run)\b",
+            # must first call（模板 #2 变体："you MUST first call 'move_file'"）
+            r"\b(?P<anchor>must) first (call|use|run)\b",
+            # 强度词 + 调用带引号工具名（模板 #3："MUST use 'puppeteer_evaluate'"；
+            # qubit 变体刻意把强度句与动作句用句号隔开，窗口允许跨一句，
+            # FP 研究实测 163/485 命中、良性 114 描述 + 19 案例全 0 命中）
+            r"\b(?:must|mandatory|obligatory)\b.{0,140}?"
+            r"(?:call\w*|us\w*|run)\b\s*[^.\n]{0,20}?['\"](?P<anchor>[\w_-]+)['\"]",
+        ],
+        "why": "条件调用序劫持：以强制度词强制先调用另一工具执行载荷",
+    },
 ]
 
 _COMPILED = [(r["id"], r["severity"], [re.compile(p, re.I) for p in r["patterns"]], r["why"])

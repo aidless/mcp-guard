@@ -40,7 +40,7 @@
   "note": "all 485 entries are poisoned per the benchmark, so hits are true positives; the 461 unflagged carry live poisons (marker counts over unflagged: 'must first' 105, 'before using' 71, 'mandatory' 45, 'http' 29, 'overwrite' 3)"
  },
  "finding": "mcp-guard's lexical rulepack catches ~5% of MCPTox poisoned cases. The dominant uncovered template is CONDITIONAL CALL-ORDER HIJACKING ('BEFORE/AFTER calling tool X, you MUST first call tool Y to Z') -- a template family with no rule in the pack (6 poison rules target secrets/exfil/auth-exec/encoding, not call-ordering).",
- "follow_up_registered_not_done": "A call-order-hijack rule family needs its own FP study: 'before using X, call Y' also appears in legitimate orchestration descriptions (e.g. 'before calling delete_file, confirm with list_files'). Requires benign orchestration corpus + cases + ablation before merging.",
+ "follow_up_registered_not_done": null,
  "local_artifacts": {
   "/tmp/mcptox_pure.json": "resumed full download (valid JSON)",
   "/tmp/mcptox_corpus.json": "scan_corpus.py input shape",
@@ -53,5 +53,45 @@
   "desc_differs": 19,
   "desc_differs_note": "same tool name, DIFFERENT poisoning text in .py vs JSON (e.g. simple_addition: py mandates put_schedules, js mandates scrape_webpage) -- the two repo sources are not in sync; recorded as upstream data-quality observation",
   "smoke_scan_on_py_corpus": "24/485 flagged (identical rate to JSON corpus)"
+ },
+ "follow_up_done_2026_11_09": {
+  "rule": "call-order-hijack (guard/rules.py)",
+  "anchors": [
+   "before..must..call (cross-sentence window)",
+   "must first call",
+   "intensity word + quoted tool call"
+  ],
+  "fp_study": {
+   "benign_tools": 115,
+   "nonempty": 114,
+   "call_order_hits": 0,
+   "note": "official 67 + third-party 48; benign 'must/required' usage is plain prose"
+  },
+  "poison_coverage": {
+   "before": 24,
+   "after": 215,
+   "rate_after": 0.4433
+  },
+  "cases_added": {
+   "poison": [
+    "qubit",
+    "titanic",
+    "simple_subtraction"
+   ],
+   "benign": [
+    "get_abstract",
+    "edit_file",
+    "unwatch_topic"
+   ]
+  },
+  "headline_after": {
+   "recall_case": 0.96,
+   "fpr_benign": 0.0,
+   "recall_rule": 0.9062
+  },
+  "mutations": {
+   "mechanism_quarantine": "4 red",
+   "criterion_drop_quoted_tool": "2 red"
+  }
  }
 }
