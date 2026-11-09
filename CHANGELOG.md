@@ -40,6 +40,29 @@
 - **MCPTox 外部语料首读**（`tasks/mcptox_probe.json`）：AAAI-26 基准公开可得；
   `pure_tool.json` 实为投毒定义语料（命名陷阱）；mcp-guard 词法规则接住
   24/485 ≈ 4.9%，主导缺口 = 条件调用序劫持模板族，已登记为后续项。
+- **调用序劫持规则族** `call-order-hijack`（A1，FP 研究先行）：良性编排语料
+  （官方 7 servers 67 工具 + firecrawl/arxiv 48 工具 = 115）里 call-order 句式
+  **0 命中**后落地三锚（before…must…call / must first call / 强度词+带引号
+  工具名跨句版）；MCPTox 覆盖 24→215/485（×9），良性 FP 0/115；语料 44 案例
+  （25 毒/19 良）。
+- **unicode/hex 转义解码**（B3）：`scan_text` 扫「原文+解码」两遍
+  （`\uXXXX`/`\xXX`），ablation 机器共享同一解码（否则机器与 run_eval 口径
+  漂移）；语料 47 案例，recall_case 0.963（26/27）、fpr 0.0（0/20）。
+- **静态-运行时一致性审计** `scripts/capability_consistency.py`（A3）：对代理
+  落盘产物判矛盾——清单外工具、只读层配危险参数、unknown 层配危险参数、
+  只读层藏破坏性 batch 内层；digest-only 不猜值，缺输入 NOT_ASSESSED。
+- **能力层消融** `scripts/capability_ablation.py`（B2）：四条证据轴
+  （名称表/危险参数表/枚举感知/batch 解包）逐轴打补丁重扫，restore 后必须
+  复现基线，否则 exit 2；三 fixture 实测：agent-desktop 仅名称轴影响 4 工具。
+- **Streamable HTTP 传输代理** `guard/http_proxy.py`（D1）：MCP 2025-06-18
+  推荐传输的请求侧门禁；`tools_scan`/`call_decision` 抽成模块级纯函数，stdio
+  与 HTTP 两面共享同一门禁语义；阻断码与 stdio 一致（-32001/-32002/-32003/-32004）。
+- **def_tool/.py 交叉验证**（A2）：MCPTox `def_tool/` 485 个 FastMCP 形态
+  .py 经 AST 提取与 `pure_tool.json` 对表——438 全匹配、19 条同名不同毒文
+  （上游两源不同步的实测证据）、2 条 name missing；.py smoke 扫描与 JSON
+  语料完全一致（24/485）。
+- **magpie 台账刷新**（D2）：live 注册表重读，23 工具名零漂移，三台账
+  crosscheck 全绿。
 
 ### Fixed
 
@@ -53,8 +76,12 @@
 ### 已知边界（声明，不掩盖）
 
 - 分层依据是工具名、描述与 schema，非运行时行为；不声明检出率。
-- 代理只覆盖 stdio newline framing（MCP 规范 2025-06-18 定义的 stdio 定界方式），不覆盖 Streamable HTTP 与自定义传输。
+- stdio 代理覆盖规范定义的 newline framing；HTTP 代理覆盖 Streamable HTTP 的
+  请求侧（POST JSON-RPC），上游响应（含 SSE 流）原样中继不做响应侧重扫，
+  无鉴权；自定义传输仍不覆盖。
 - batch 解包只看 schema 默认值与真实调用载荷；无默认载荷标 `opaque`。
+- 调用序劫持规则依赖强度词+引号工具名的形态学；跨句窗口 140 字符内的变体
+  可覆盖，更远的或改写强度词的不保证。
 
 ## 0.1.0 — 2026-10-28
 

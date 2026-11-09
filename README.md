@@ -87,6 +87,16 @@ mcp-guard-scan tools.json --require-annotations       # 写入/破坏工具缺�
 `dismiss_all_notifications`、`clipboard_clear`）。`scripts/capability_crosscheck.py`
 把启发式结果与案例显式台账逐工具对表，CI 会在漂移时变红。
 
+两个配套审计脚本（2026-11-09）：
+
+- `scripts/capability_consistency.py`（A3）——审计代理落盘产物的**静态-运行时
+  矛盾**：清单外工具被调用、只读层（T0/T1）配危险参数、unknown 层配危险参数、
+  只读层藏破坏性 batch 内层。digest-only 模式只判参数名，不猜参数值。
+- `scripts/capability_ablation.py`（B2）——把四条证据轴（名称表/危险参数表/
+  枚举感知/batch 解包）逐轴打补丁重扫，restore 后必须复现基线（否则 exit 2）。
+  实测：agent-desktop 只有名称轴影响 4 个工具，magpie 23 个无描述工具里
+  名称轴支撑 2 个 T0——空描述语料里名字就是唯一证据。
+
 规则边界：分层依据是工具名、描述和 schema，不是运行时行为；不声明检出率，
 不替代权限系统，也不把词法命中当作最终安全裁决。
 
@@ -119,24 +129,35 @@ mcp-guard-proxy --log-dir runs/gate1 --block-unauthorized -- npx -y some-mcp
 python3 -m pytest tests/test_proxy.py -q   # 8 条真实 subprocess 集成测试
 ```
 
-边界（2026-11-09 对照 MCP 规范 2025-06-18 核实）：代理只覆盖 stdio newline
-framing——这**正是规范对 stdio 传输的官方定义**（"Messages are delimited by
-newlines, and MUST NOT contain embedded newlines"），所以 stdio 场景不存在
-`Content-Length` framing 兼容问题；真正不覆盖的是第二条标准传输 Streamable
-HTTP（2025-06-18 起取代 HTTP+SSE）与自定义传输，那些入口不经本代理、本代理
-对其零观测。它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与
+### Streamable HTTP 代理（`guard/http_proxy.py`，2026-11-09 起）
+
+MCP 2025-06-18 的第二条标准传输也有代理了：客户端 POST JSON-RPC 到本代理，
+请求侧门禁与 stdio 完全同源——`tools_scan`/`call_decision` 已抽成模块级纯
+函数，两个传输面共享同一套决策，阻断码一致（tools/list 投毒 -32001、
+tools/call 阻断 -32002、缺注解 -32003、注解说谎 -32004）。
+
+```bash
+python3 guard/http_proxy.py --upstream http://127.0.0.1:9000/mcp \
+    --log-dir runs/gate-http --port 0 --block-unauthorized
+```
+
+边界（2026-11-09 对照 MCP 规范 2025-06-18 核实）：stdio 代理覆盖规范定义的
+newline framing（"Messages are delimited by newlines, and MUST NOT contain
+embedded newlines"）；HTTP 代理覆盖 Streamable HTTP 的**请求侧**——上游响应
+（含 `text/event-stream`）原样中继，不做响应侧重扫，无鉴权、无会话管理；
+自定义传输仍不覆盖。它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与
 `agent-trace` 能消费的观测记录（trace 自 88a4a28 起同时绑定能力轴 tier 与
 tier_mismatches），不负责模型评分，也不把词法命中当作最终安全裁决。
 
-`--offline` 的实测输出（22 条 poison / 16 条 benign）：
+`--offline` 的实测输出（47 条案例：27 poison / 20 benign）：
 
 ```json
-{"encoder": "rules-v1", "n_poison": 19, "n_benign": 11,
+{"encoder": "rules-v1", "n_poison": 27, "n_benign": 20,
  "recall_case": 0.963, "fpr_benign": 0.0, "recall_rule": 0.9118}
 ```
 
-> `recall_case` 是**这 22 条样本上的**用例覆盖率，不是总体检出率；
-> `fpr_benign = 0.0` 是**这 11 条 benign 上**的零误报。样本量很小，
+> `recall_case` 是**这 47 条样本上的**用例覆盖率，不是总体检出率；
+> `fpr_benign = 0.0` 是**这 20 条 benign 上**的零误报。样本量很小，
 > 这两个数字只用于回归锁定，不作能力声明。
 
 ## 规则包（`guard/rules.py`，公开可审）
@@ -174,7 +195,7 @@ sha256 答不了的问题：
 没有历史快照时只报 digest 不一致，`fields` 标
 `<unknown: no snapshot stored>`——不猜。
 
-## 离线评测结果（`rules-v1`，44 案例：25 毒 + 19 良）
+## 离线评测结果（`rules-v1`，47 案例：27 毒 + 20 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
@@ -207,12 +228,13 @@ sha256 答不了的问题：
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
 
 消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算，一条命令可复算）。
-下表是对**当前** `cases.jsonl`（44 案例：25 毒 / 19 良，32 条 gold 规则）的实测：
+下表是对**当前** `cases.jsonl`（47 案例：27 毒 / 20 良，34 条 gold 规则）的实测：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
 | 全部规则（有 `encoded-exfil`） | 26/27 = 0.963 | 0/20 = 0.0 | 31/34 = 0.9118 |
-| 去掉 `encoded-exfil` | 20/25 = 0.8 | 0/20 = 0.0 | 25/32 = 0.7812 |
+| 去掉 `encoded-exfil` | 22/27 = 0.8148 | 0/20 = 0.0 | 27/34 = 0.7941 |
+| `secret-read` 收紧到 ~/.ssh 家族 | 24/27 = 0.8889 | 0/20 = 0.0 | 28/34 = 0.8235 |
 
 > 复算命令：`python3 scripts/measure_rule_ablation.py`（加 `--markdown` 出这张表，
 > `--check` 把 headline 三元组接成 CI 门禁）。脚本自己会先和 `run_eval.py --offline`
@@ -366,7 +388,7 @@ schema，报告里逐条写明了这些边界。
   全是普通技术散文（`oldText must match`、`status input_required`）。
 - **规则落地（`call-order-hijack`，A1）**：三条锚（before…must…call / must
   first call / 强度词+带引号工具名，窗口允许跨一句）。投毒覆盖 24/485 →
-  **215/485 = 44.3%**（×9），真实良性 0/115 误报；案例语料 38 → 44。
+  **215/485 = 44.3%**（×9），真实良性 0/115 误报；案例语料 38 → 47。
   TDD + 双向变异（拆机制 4 红、拆准则 2 红）见
   `tests/test_rule_call_order.py`。
 - 诚实边界：良性基座 115 条不算大，0 误报是"未观察到"不是"不存在"；
@@ -392,9 +414,19 @@ schema，报告里逐条写明了这些边界。
 - [x] **Agent Reliability Platform 胶水层**：与 `auditable-llm-eval` 组成三层
   （BEFORE 门禁 / AFTER 审计 / trace 胶水）。胶水层落盘在 `auditable-llm-eval` 仓
   `agent_platform/trace.py`（一条命令产出带 sha256 的 trace），工具绑定（allowlist）
-  与实际调用（tool_calls）两层都已接进来。
+  与实际调用（tool_calls）两层都已接进来；trace 自 88a4a28 起同时绑定能力轴
+  （per-tool tier + tier_mismatches）。
 - [x] stdio 代理入口：本地 `guard/proxy.py` + 5 条集成测试已落地，README/CI
   已接线；**提交与发布仍需单独授权**。
+- [x] Streamable HTTP 传输代理（2026-11-09：`guard/http_proxy.py`，请求侧门禁
+  与 stdio 共享 `tools_scan`/`call_decision`；响应侧中继为已声明边界）。
+- [x] 调用序劫持规则族（2026-11-09：FP 研究先行——良性编排语料 0 命中后才落地
+  `call-order-hijack`；MCPTox 覆盖 4.9% → 44.3%，良性 0/115）。
+- [x] unicode/hex 转义解码（2026-11-09：`scan_text` 原文+解码双扫，ablation
+  机器共享解码；语料 47 案例）。
+- [x] 静态-运行时一致性审计 + 能力层消融（2026-11-09：`capability_consistency.py`
+  与 `capability_ablation.py`，均带 restore 检查）。
+- [x] magpie 台账刷新（2026-11-09：live 注册表零漂移，三台账 crosscheck 全绿）。
 - [ ] 让 runner 从推理路径**自动**采集 tool_calls（当前是喂入观测证据，
   因为本仓评测腿走 ollama `/api/generate` 纯文本补全、无原生 tool_calls 字段；
   自动采集需换 chat 接口 + function-calling 模型，属另一增量）。
