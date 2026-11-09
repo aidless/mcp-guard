@@ -41,6 +41,7 @@ from pathlib import Path
 from .scan import digest_tool, scan_tool
 from .capability import (
     T3_DESTRUCTIVE,
+    TIER_RANK,
     annotation_violations,
     scan_capability,
     summarise,
@@ -73,21 +74,33 @@ def _strings(value, out: list[str]) -> None:
 
 class Policy:
     def __init__(self, deny_global: list[str] | None = None,
-                 deny_by_tool: dict[str, list[str]] | None = None):
+                 deny_by_tool: dict[str, list[str]] | None = None,
+                 allow_tools: list[str] | None = None,
+                 max_tier: str | None = None,
+                 block: dict | None = None):
         self.deny_global = [re.compile(p, re.I) for p in (deny_global or [])]
         self.deny_by_tool = {name: [re.compile(p, re.I) for p in pats]
                              for name, pats in (deny_by_tool or {}).items()}
+        self.allow_tools = set(allow_tools) if allow_tools else None
+        self.max_tier = max_tier
+        self.max_tier_rank = TIER_RANK.get(max_tier) if max_tier else None
+        self.block = {key: bool(value) for key, value in (block or {}).items()}
 
     @classmethod
     def load(cls, path: Path | None, cli_patterns: list[str] | None = None) -> "Policy":
         deny_global = list(cli_patterns or [])
         deny_by_tool: dict[str, list[str]] = {}
+        allow_tools = max_tier = None
+        block: dict = {}
         if path and path.exists():
             doc = json.loads(path.read_text(encoding="utf-8"))
             deny_global += doc.get("deny_arg_regex", [])
             for name, spec in doc.get("tools", {}).items():
                 deny_by_tool[name] = spec.get("deny_arg_regex", [])
-        return cls(deny_global, deny_by_tool)
+            allow_tools = doc.get("allow_tools")
+            max_tier = doc.get("max_tier")
+            block = doc.get("block") or {}
+        return cls(deny_global, deny_by_tool, allow_tools, max_tier, block)
 
     def violation(self, tool: str, args: dict) -> str | None:
         values: list[str] = []
@@ -211,10 +224,23 @@ class Proxy:
         blocked, reason = False, ""
         if self.block_unauthorized and self.allowlist is not None and tool not in self.allowlist:
             blocked, reason = True, f"tool {tool!r} is not in the tools/list allowlist"
-        elif self.policy.violation(tool, args):
-            blocked = True
-            reason = self.policy.violation(tool, args) or "argument policy violation"
-        else:
+        elif self.policy.allow_tools is not None and tool not in self.policy.allow_tools:
+            blocked, reason = True, f"tool {tool!r} is not in the policy allow_tools"
+        elif self.policy.max_tier_rank is not None:
+            tier = next((c["tier"] for c in self.capabilities if c["name"] == tool),
+                        "unknown")
+            rank = TIER_RANK.get(tier)
+            if rank is None:
+                blocked, reason = True, (f"tier unknown exceeds policy max_tier "
+                                         f"{self.policy.max_tier} (fail-closed)")
+            elif rank > self.policy.max_tier_rank:
+                blocked, reason = True, (f"tier {tier} exceeds policy max_tier "
+                                         f"{self.policy.max_tier}")
+        if not blocked:
+            violation = self.policy.violation(tool, args)
+            if violation:
+                blocked, reason = True, violation
+        if not blocked:
             batch_reason = self._batch_violation(args)
             if batch_reason:
                 blocked, reason = True, batch_reason
@@ -343,13 +369,23 @@ def main(argv: list[str] | None = None) -> int:
     if not upstream:
         ap.error("missing upstream command after --")
     policy = Policy.load(args.policy, args.deny_arg_regex)
+    if policy.max_tier is not None and policy.max_tier_rank is None:
+        ap.error(f"policy max_tier {policy.max_tier!r} is not a known capability tier "
+                 f"(one of {sorted(TIER_RANK)})")
+    # CLI flag OR policy declaration: a block is active when either says so.
+    declared = policy.block
     proxy = Proxy(upstream, args.log_dir, policy,
-                  block_on_hit=args.block_on_hit,
-                  block_unauthorized=args.block_unauthorized,
+                  block_on_hit=args.block_on_hit or declared.get("on_hit", False),
+                  block_unauthorized=(args.block_unauthorized
+                                      or policy.allow_tools is not None
+                                      or declared.get("unauthorized", False)),
                   store_raw_args=args.store_raw_args,
-                  block_batch_destructive=args.block_batch_destructive,
-                  require_annotations=args.require_annotations,
-                  block_tier_mismatch=args.block_tier_mismatch)
+                  block_batch_destructive=(args.block_batch_destructive
+                                           or declared.get("batch_destructive", False)),
+                  require_annotations=(args.require_annotations
+                                       or declared.get("require_annotations", False)),
+                  block_tier_mismatch=(args.block_tier_mismatch
+                                       or declared.get("tier_mismatch", False)))
     return proxy.run()
 
 

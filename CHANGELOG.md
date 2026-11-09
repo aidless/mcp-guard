@@ -20,6 +20,26 @@
   台账（67 工具，21/12/29/5）逐工具对表，漂移即红。
 - 案例语料入库：`examples/agent_desktop_1_2_0_tools.json`（原始 tools/list）与
   `examples/agent_desktop_1_2_0_ledger.json`（显式分层台账）。
+- **枚举感知危险参数**：全字符串枚举参数逐值分层取 max（枚举 `command` 只含
+  `["status"]` 不再触发 exec 层）；shell 形值（`sh -c`/`cmd /c`/`powershell -c`）
+  直接判 exec。
+- **注解错配门** `tier_mismatches` + 代理 `--block-tier-mismatch`：`readOnlyHint: true`
+  配 T2/T3 行为属"说谎"，与"沉默"分开记账，说谎即阻断。
+- **能力清单漂移** `scripts/capability_drift.py`：对比两份 `capability_manifest.json`
+  （tier 爬升 / 规则面增长 / 危险参数面变化），`--fail-on-drift` 进 CI；缺输入
+  fail-closed（NOT_ASSESSED）。
+- `mcp-guard-scan --annotation-report PATH`：注解审计只出报告不设门，与
+  `--require-annotations` 正交。
+- **声明式代理策略文件**：`--policy` 支持 `allow_tools` / `max_tier`（unknown
+  fail-closed）/ `block.*` 六键（与 CLI 旗标 OR 合并）；`max_tier` 拼写错误启动即拒。
+- **逐规则 prove-red 电池** `scripts/rule_prove_red.py`（进 CI）：6 投毒规则 + 9 能力
+  规则每条配最小夹具，规则失明即红。
+- **第二、三个能力台账**：`examples/whatsapp_sample_ledger.json`（手判先行）与
+  `examples/magpie_registry_{tools,ledger}.json`（23 个无描述社区插件，钉死
+  unknown 不冒充只读）；crosscheck 支持 `--tools/--ledger`。
+- **MCPTox 外部语料首读**（`tasks/mcptox_probe.json`）：AAAI-26 基准公开可得；
+  `pure_tool.json` 实为投毒定义语料（命名陷阱）；mcp-guard 词法规则接住
+  24/485 ≈ 4.9%，主导缺口 = 条件调用序劫持模板族，已登记为后续项。
 
 ### Fixed
 
@@ -33,7 +53,7 @@
 ### 已知边界（声明，不掩盖）
 
 - 分层依据是工具名、描述与 schema，非运行时行为；不声明检出率。
-- 代理只覆盖 stdio newline framing，不处理 `Content-Length`。
+- 代理只覆盖 stdio newline framing（MCP 规范 2025-06-18 定义的 stdio 定界方式），不覆盖 Streamable HTTP 与自定义传输。
 - batch 解包只看 schema 默认值与真实调用载荷；无默认载荷标 `opaque`。
 
 ## 0.1.0 — 2026-10-28
