@@ -363,7 +363,8 @@ def _hits(tool: dict) -> list[dict]:
             "why": "produces a read-only observation artifact",
         })
     for suffix, tier in NAME_TIERS.items():
-        if name == suffix or name.endswith("_" + suffix):
+        if (name == suffix or name.endswith("_" + suffix)
+                or name.startswith(suffix + "_")):
             hits.append({
                 "rule": "name-override",
                 "tier": tier,

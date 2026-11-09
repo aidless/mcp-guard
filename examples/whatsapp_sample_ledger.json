@@ -1,0 +1,14 @@
+{
+ "server": "whatsapp@sample",
+ "note": "hand-curated tiers (2026-11-09): 'Send a message' is a state-mutating action (T2) even though the poisoned description also carries read phrases; 'Get current weather' is a pure read (T0). Poison-axis hits are irrelevant here -- this ledger pins the CAPABILITY axis only.",
+ "tiers": [
+  {
+   "name": "send_message",
+   "tier": "T2_mutate"
+  },
+  {
+   "name": "get_weather",
+   "tier": "T0_read"
+  }
+ ]
+}

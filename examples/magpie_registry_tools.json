@@ -1,0 +1,74 @@
+{
+ "note": "frozen 2026-11-09 snapshot of the magpie-community plugin registry (~/.config/magpie/plugin-tools.json): names-only, no descriptions, no schemas. Pinned so the ledger check tests a fixed surface, not a moving live file.",
+ "tools": [
+  {
+   "name": "audios_understand"
+  },
+  {
+   "name": "batch_text_to_audio"
+  },
+  {
+   "name": "batch_text_to_music"
+  },
+  {
+   "name": "call_tool"
+  },
+  {
+   "name": "convert"
+  },
+  {
+   "name": "date"
+  },
+  {
+   "name": "describe_images"
+  },
+  {
+   "name": "enhance_image"
+  },
+  {
+   "name": "eval"
+  },
+  {
+   "name": "generate_image"
+  },
+  {
+   "name": "get_asset_url"
+  },
+  {
+   "name": "get_voice_list"
+  },
+  {
+   "name": "list_tools"
+  },
+  {
+   "name": "listen_audio"
+  },
+  {
+   "name": "query_video_generation"
+  },
+  {
+   "name": "remove_image_background"
+  },
+  {
+   "name": "reverse_image_search"
+  },
+  {
+   "name": "search_images"
+  },
+  {
+   "name": "submit_video_generation"
+  },
+  {
+   "name": "synthesize_speech"
+  },
+  {
+   "name": "tool_schema"
+  },
+  {
+   "name": "videos_understand"
+  },
+  {
+   "name": "web_search"
+  }
+ ]
+}
