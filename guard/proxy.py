@@ -44,6 +44,7 @@ from .capability import (
     annotation_violations,
     scan_capability,
     summarise,
+    tier_mismatches,
     unwrap_payload,
 )
 from .capability import BATCH_KEYS
@@ -103,7 +104,8 @@ class Proxy:
                  policy: Policy, block_on_hit: bool, block_unauthorized: bool,
                  store_raw_args: bool = False,
                  block_batch_destructive: bool = False,
-                 require_annotations: bool = False):
+                 require_annotations: bool = False,
+                 block_tier_mismatch: bool = False):
         self.upstream = upstream
         self.log_dir = log_dir
         self.policy = policy
@@ -111,6 +113,7 @@ class Proxy:
         self.block_unauthorized = block_unauthorized
         self.block_batch_destructive = block_batch_destructive
         self.require_annotations = require_annotations
+        self.block_tier_mismatch = block_tier_mismatch
         self.store_raw_args = store_raw_args
         self.allowlist: set[str] | None = None
         self.manifest: dict | None = None
@@ -151,11 +154,13 @@ class Proxy:
                 flagged.append(tool.get("name", "?"))
         self.capabilities = [scan_capability(tool) for tool in tools]
         violations, warnings = annotation_violations(tools, self.capabilities)
+        mismatches = tier_mismatches(tools, self.capabilities)
         capability_manifest = {
             "source": "proxy",
             "summary": summarise(self.capabilities),
             "annotation_violations": violations,
             "annotation_warnings": warnings,
+            "tier_mismatches": mismatches,
             "tools": self.capabilities,
         }
         self.manifest = {"source": "proxy", "n_tools": len(entries),
@@ -177,6 +182,11 @@ class Proxy:
             self._error(msg_id, -32003,
                         "mcp-guard blocked tools/list: missing or wrong capability annotations: "
                         + ", ".join(sorted({v["name"] for v in violations})))
+            return False
+        if mismatches and self.block_tier_mismatch:
+            self._error(msg_id, -32004,
+                        "mcp-guard blocked tools/list: annotations contradict capability tier: "
+                        + ", ".join(sorted({m["name"] for m in mismatches})))
             return False
         return True
 
@@ -319,6 +329,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="unwrap batch payloads and refuse inner T3 commands")
     ap.add_argument("--require-annotations", action="store_true",
                     help="refuse tools/list when mutating tools lack explicit capability annotations")
+    ap.add_argument("--block-tier-mismatch", action="store_true",
+                    help="refuse tools/list when annotations explicitly contradict the capability tier (readOnlyHint=true on a T2/T3 tool, destructiveHint=false on a T3 tool)")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
     ap.add_argument("upstream", nargs=argparse.REMAINDER,
@@ -336,7 +348,8 @@ def main(argv: list[str] | None = None) -> int:
                   block_unauthorized=args.block_unauthorized,
                   store_raw_args=args.store_raw_args,
                   block_batch_destructive=args.block_batch_destructive,
-                  require_annotations=args.require_annotations)
+                  require_annotations=args.require_annotations,
+                  block_tier_mismatch=args.block_tier_mismatch)
     return proxy.run()
 
 

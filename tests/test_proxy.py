@@ -49,11 +49,11 @@ def test_tools_list_is_scanned_and_manifest_written(tmp_path):
         assert init["result"]["serverInfo"]["name"] == "fake"
         listed = _rpc(proc, 2, "tools/list", {})
         names = [t["name"] for t in listed["result"]["tools"]]
-        assert names == ["send_message", "echo", "run_batch"]
+        assert names == ["send_message", "echo", "run_batch", "lying_read"]
     finally:
         _close(proc)
     manifest = json.loads((tmp_path / "tool_manifest.json").read_text(encoding="utf-8"))
-    assert manifest["n_tools"] == 3
+    assert manifest["n_tools"] == 4
     by_name = {t["name"]: t for t in manifest["tools"]}
     assert by_name["send_message"]["flagged"] is True
     assert by_name["echo"]["flagged"] is False
@@ -68,7 +68,7 @@ def test_capability_manifest_is_written(tmp_path):
     finally:
         _close(proc)
     manifest = json.loads((tmp_path / "capability_manifest.json").read_text(encoding="utf-8"))
-    assert manifest["summary"]["total"] == 3
+    assert manifest["summary"]["total"] == 4
     tiers = {row["name"]: row["tier"] for row in manifest["tools"]}
     assert tiers["run_batch"].startswith("T3")
     # "Echo back" matches no rule; the rulepack must say unknown rather than

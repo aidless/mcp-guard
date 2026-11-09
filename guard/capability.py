@@ -135,6 +135,8 @@ CAPABILITY_RULES = [
             r"\b(?:run|start)\s+(?:a\s+)?(?P<anchor>command|script|program|programme|"
             r"binary|executable|shell|process)\b",
             r"\b(?P<anchor>shell\s*=\s*true|os\.system|subprocess)\b",
+            r"\b(?P<anchor>sh\s+-c|bash\s+-c|zsh\s+-c|cmd\s+/c|powershell\s+-c|"
+            r"/bin/(?:ba|z)?sh)\b",
         ],
         "why": "can start arbitrary code, not just manipulate an existing UI",
     },
@@ -373,19 +375,57 @@ def _hits(tool: dict) -> list[dict]:
     return hits
 
 
-def _param_hits(tool: dict) -> list[dict]:
+def _enum_tier(prop, depth: int):
+    """Max capability tier over a closed enum's values.
+
+    A string enum is the only place a schema can prove what values a param
+    admits; scanning the values turns "command" from a name-level guess into
+    a value-level fact. Returns None when the prop is not a clean non-empty
+    all-string enum (caller falls back to the static tier)."""
+    if not isinstance(prop, dict):
+        return None
+    values = prop.get("enum")
+    if not isinstance(values, list) or not values:
+        return None
+    if not all(isinstance(v, str) for v in values):
+        return None
+    tiers = []
+    for value in values:
+        synthetic = {
+            "name": value,
+            "description": value,
+            "inputSchema": {"type": "object", "properties": {}},
+        }
+        inner = scan_capability(synthetic, depth + 1)
+        tiers.append(inner["tier"])
+    known = [t for t in tiers if t in TIER_RANK]
+    if not known:
+        return "unknown"
+    return max(known, key=lambda t: TIER_RANK[t])
+
+
+def _param_hits(tool: dict, depth: int = 0) -> list[dict]:
     schema = tool.get("inputSchema") or tool.get("parameters") or {}
     props = schema.get("properties") or {}
     hits = []
     for name, (why, tier) in DANGEROUS_PARAMS.items():
         if name not in props:
             continue
+        prop = props[name]
+        enum_tier = _enum_tier(prop, depth)
+        hit_tier = tier
+        if enum_tier is not None and enum_tier != "unknown":
+            if TIER_RANK[enum_tier] < TIER_RANK[tier]:
+                hit_tier = enum_tier  # closed enum proves the param is tamer than its name
+            else:
+                hit_tier = max(tier, enum_tier, key=lambda t: TIER_RANK[t])
         hits.append({
             "rule": "dangerous-param",
-            "tier": tier,
-            "severity": "high" if tier == T3_DESTRUCTIVE else "medium",
+            "tier": hit_tier,
+            "severity": "high" if hit_tier == T3_DESTRUCTIVE else "medium",
             "match": name,
             "why": why,
+            **({"enum_tier": enum_tier} if enum_tier is not None else {}),
         })
     return hits
 
@@ -465,7 +505,7 @@ def unwrap_payload(value) -> list[dict]:
 
 def scan_capability(tool: dict, depth: int = 0) -> dict:
     """Classify one tool. Never raises on a missing schema."""
-    hits = _hits(tool) + _param_hits(tool)
+    hits = _hits(tool) + _param_hits(tool, depth)
     batches = batch_hits(tool, depth)
     inner_tiers = [
         item["tier"]
@@ -494,6 +534,30 @@ def summarise(results: list[dict]) -> dict:
             result["name"] for result in results if result["tier"] == T3_DESTRUCTIVE
         ],
     }
+
+
+def tier_mismatches(tools: list[dict], results: list[dict]) -> list[dict]:
+    """Tools whose annotations *explicitly contradict* the capability tier.
+
+    A lie (readOnlyHint=true on a T2/T3 tool, destructiveHint=false on a T3
+    tool) is different from silence (no annotations at all): silence is
+    --require-annotations' business; lies are --block-tier-mismatch's.
+    """
+    by_name = {result["name"]: result for result in results}
+    out = []
+    for tool in tools:
+        annotations = tool.get("annotations")
+        if not isinstance(annotations, dict):
+            continue  # silence, not a lie
+        tier = by_name.get(tool.get("name", "?"), {}).get("tier", "unknown")
+        reasons = []
+        if annotations.get("readOnlyHint") is True and tier in (T2_MUTATE, T3_DESTRUCTIVE):
+            reasons.append(f"readOnlyHint-true-but-{tier}")
+        if annotations.get("destructiveHint") is False and tier == T3_DESTRUCTIVE:
+            reasons.append("destructiveHint-false-but-destructive")
+        if reasons:
+            out.append({"name": tool.get("name", "?"), "tier": tier, "reasons": reasons})
+    return out
 
 
 def annotation_violations(tools: list[dict], results: list[dict]) -> tuple[list[dict], list[dict]]:
