@@ -63,6 +63,26 @@
   语料完全一致（24/485）。
 - **magpie 台账刷新**（D2）：live 注册表重读，23 工具名零漂移，三台账
   crosscheck 全绿。
+- **响应侧门禁**（R1）：tools/call 的 JSON-RPC result 响应过同一套投毒规则——
+  `response_scan(result)` 模块级纯函数，stdio 与 HTTP 共享；默认只观测
+  （`tool_calls` 记 `response_flagged`/`response_rule_ids`/`response_texts_scanned`），
+  `--block-response-hits` 命中即以 -32007 替换响应不转发（policy 键
+  `response_hits` 同样生效）；SSE 流式体仍原样中继（边界保留）。
+- **behavior-override + param-pollution 规则族**（R2，MCPTox 残差 270 分型
+  驱动）：行为越权四锚（priority/precedence、override…regardless of、
+  must instead/rather、refined regardless-of-input）+ 参数污染两锚
+  （强度词+动词+带引号目标值/参数词）；MCPTox 覆盖 215→347/485（71.6%），
+  良性基座扩到 222（+ smithery 108 条实抓）仍 0 FP；语料 52 案例（32 毒/
+  22 良），recall_case 0.9688、fpr 0.0、recall_rule 0.9268；裸 regardless
+  边界由良性 `read_text_file`（"regardless of extension"）钉死。
+- **全链路 e2e 演示** `demo.sh`（R3）：六腿全真实子进程（静态扫描/漂移钉选/
+  stdio 观测/stdio 阻断/HTTP 门禁/一致性审计），腿级自证、失败退出非零，
+  `tests/test_demo_e2e.py` 接进套件。
+- **跨仓联动**：agent-redteam `defenses/mcp_guard_scanner.py`（R6，layer 6：
+  投毒命中→BLOCK、注解说谎→FLAG、引擎缺失→FLAG 绝不静默放行，commit eecb08f）；
+  auditable-llm-eval `eval/auto_tool_calls.py`（R7：OpenAI 兼容 function-calling
+  推理路径自动采集 tool_calls.json，Magpie live smoke 通过，commit c9f7400；
+  runner 接线因该文件另有未提交改动而显式挂起）。
 
 ### Fixed
 
@@ -77,8 +97,8 @@
 
 - 分层依据是工具名、描述与 schema，非运行时行为；不声明检出率。
 - stdio 代理覆盖规范定义的 newline framing；HTTP 代理覆盖 Streamable HTTP 的
-  请求侧（POST JSON-RPC），上游响应（含 SSE 流）原样中继不做响应侧重扫，
-  无鉴权；自定义传输仍不覆盖。
+  请求侧，tools/call 的 JSON-RPC result 响应已做响应侧投毒扫描（R1），
+  **SSE 流式体仍原样中继不重扫**；无鉴权；自定义传输仍不覆盖。
 - batch 解包只看 schema 默认值与真实调用载荷；无默认载荷标 `opaque`。
 - 调用序劫持规则依赖强度词+引号工具名的形态学；跨句窗口 140 字符内的变体
   可覆盖，更远的或改写强度词的不保证。

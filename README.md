@@ -143,8 +143,10 @@ python3 guard/http_proxy.py --upstream http://127.0.0.1:9000/mcp \
 
 边界（2026-11-09 对照 MCP 规范 2025-06-18 核实）：stdio 代理覆盖规范定义的
 newline framing（"Messages are delimited by newlines, and MUST NOT contain
-embedded newlines"）；HTTP 代理覆盖 Streamable HTTP 的**请求侧**——上游响应
-（含 `text/event-stream`）原样中继，不做响应侧重扫，无鉴权、无会话管理；
+embedded newlines"）；HTTP 代理覆盖 Streamable HTTP 的**请求侧**——tools/call
+的 JSON-RPC result 响应已过同一套投毒规则（R1 响应侧门禁：默认观测记录
+`response_flagged`，`--block-response-hits` 命中即以 -32007 替换响应）；
+**流式 SSE 体（`text/event-stream`）仍原样中继不重扫**；无鉴权、无会话管理；
 自定义传输仍不覆盖。它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与
 `agent-trace` 能消费的观测记录（trace 自 88a4a28 起同时绑定能力轴 tier 与
 tier_mismatches），不负责模型评分，也不把词法命中当作最终安全裁决。
@@ -429,7 +431,13 @@ schema，报告里逐条写明了这些边界。
 - [x] 全链路 e2e 演示（2026-11-09：`demo.sh` 六条腿——静态扫描/漂移钉选/stdio
   观测/stdio 阻断/HTTP 门禁/一致性审计——全部真实子进程，腿级自证，
   任何一腿失败退出非零；`tests/test_demo_e2e.py` 把它接进套件）。
-- [ ] 与 agent-redteam 剧本联动（93 测试复用）
+- [x] agent-redteam 剧本联动（2026-11-09：`defenses/mcp_guard_scanner.py`
+  layer 6——投毒命中→BLOCK、注解说谎→FLAG、引擎缺失→FLAG 绝不静默放行；
+  跨仓 importlib 加载本仓 guard，agent-redteam commit eecb08f）。
+- [ ] 推理路径自动采集（R7 已在 auditable-llm-eval 落地 `eval/auto_tool_calls.py`
+  commit c9f7400：OpenAI 兼容 chat completions + function calling 自动产出
+  tool_calls.json，Magpie 网关 live smoke 通过；run_copilot_eval.py 内 3 行
+  接线待其另一会话未提交改动落地后补）。
 - [x] CI 门禁自证（`scripts/mutation_control.py` + `mutation-control` workflow：
   证明 pytest 门禁在代码被改坏时**必须**变红，而不是把失败吞掉）
 - [x] 消融数字可复算（2026-11-02：`scripts/measure_rule_ablation.py` 落盘，
@@ -442,7 +450,8 @@ schema，报告里逐条写明了这些边界。
 - [x] stdio 代理入口：本地 `guard/proxy.py` + 5 条集成测试已落地，README/CI
   已接线；**提交与发布仍需单独授权**。
 - [x] Streamable HTTP 传输代理（2026-11-09：`guard/http_proxy.py`，请求侧门禁
-  与 stdio 共享 `tools_scan`/`call_decision`；响应侧中继为已声明边界）。
+  与 stdio 共享 `tools_scan`/`call_decision`；R1 后 JSON-RPC result 响应也过
+  投毒规则，仅 SSE 流式体保持原样中继）。
 - [x] 调用序劫持规则族（2026-11-09：FP 研究先行——良性编排语料 0 命中后才落地
   `call-order-hijack`；MCPTox 覆盖 4.9% → 44.3%，良性 0/115）。
 - [x] unicode/hex 转义解码（2026-11-09：`scan_text` 原文+解码双扫，ablation
