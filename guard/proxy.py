@@ -112,6 +112,98 @@ class Policy:
         return None
 
 
+def tools_scan(tools: list[dict]) -> dict:
+    """Pure request-side tools/list evaluation, shared by the stdio and the
+    Streamable HTTP transports. Returns everything both gates need: digests,
+    poison flags, capability tiers, annotation violations/mismatches and both
+    manifests. Transport layers only decide which verdicts become blocks."""
+    entries, flagged = [], []
+    for tool in tools:
+        res = scan_tool(tool)
+        entries.append({"name": tool.get("name", "?"),
+                        "digest": digest_tool(tool),
+                        "flagged": bool(res["flagged"]),
+                        "rule_ids": sorted({h["rule"] for h in res["hits"]})})
+        if res["flagged"]:
+            flagged.append(tool.get("name", "?"))
+    capabilities = [scan_capability(tool) for tool in tools]
+    violations, warnings = annotation_violations(tools, capabilities)
+    mismatches = tier_mismatches(tools, capabilities)
+    capability_manifest = {
+        "source": "proxy",
+        "summary": summarise(capabilities),
+        "annotation_violations": violations,
+        "annotation_warnings": warnings,
+        "tier_mismatches": mismatches,
+        "tools": capabilities,
+    }
+    manifest = {"source": "proxy", "n_tools": len(entries),
+                "tools": entries,
+                "digest_algo": "sha256(canonical-json)"}
+    return {"entries": entries, "flagged": flagged, "capabilities": capabilities,
+            "violations": violations, "warnings": warnings, "mismatches": mismatches,
+            "capability_manifest": capability_manifest, "manifest": manifest,
+            "allowlist": {e["name"] for e in entries}}
+
+
+def batch_payload_violation(args: dict) -> str | None:
+    """Unwrap batch payloads and name inner T3 commands (P1 --block-batch-destructive)."""
+    for key in BATCH_KEYS:
+        if key not in args:
+            continue
+        inner = unwrap_payload(args[key])
+        destructive = [item["name"] for item in inner if item["tier"] == T3_DESTRUCTIVE]
+        if destructive:
+            return ("batch payload contains destructive command(s): "
+                    + ", ".join(sorted(set(destructive))))
+    return None
+
+
+def call_decision(state, params: dict) -> tuple[dict, str | None]:
+    """Pure request-side tools/call evaluation, shared by both transports.
+
+    state must expose: policy, block_unauthorized, allowlist, capabilities,
+    calls, store_raw_args, block_batch_destructive. Returns (log_entry, reason)
+    — reason is None when the call may pass."""
+    tool = params.get("name", "?")
+    args = params.get("arguments", {}) or {}
+    blocked, reason = False, ""
+    if state.block_unauthorized and state.allowlist is not None and tool not in state.allowlist:
+        blocked, reason = True, f"tool {tool!r} is not in the tools/list allowlist"
+    elif state.policy.allow_tools is not None and tool not in state.policy.allow_tools:
+        blocked, reason = True, f"tool {tool!r} is not in the policy allow_tools"
+    elif state.policy.max_tier_rank is not None:
+        tier = next((c["tier"] for c in state.capabilities if c["name"] == tool),
+                    "unknown")
+        rank = TIER_RANK.get(tier)
+        if rank is None:
+            blocked, reason = True, (f"tier unknown exceeds policy max_tier "
+                                     f"{state.policy.max_tier} (fail-closed)")
+        elif rank > state.policy.max_tier_rank:
+            blocked, reason = True, (f"tier {tier} exceeds policy max_tier "
+                                     f"{state.policy.max_tier}")
+    if not blocked:
+        violation = state.policy.violation(tool, args)
+        if violation:
+            blocked, reason = True, violation
+    if not blocked and state.block_batch_destructive:
+        batch_reason = batch_payload_violation(args)
+        if batch_reason:
+            blocked, reason = True, batch_reason
+
+    entry = {"seq": len(state.calls), "tool": tool,
+             "arg_keys": sorted(args) if isinstance(args, dict) else [],
+             "call_digest": _call_digest(tool, args),
+             "blocked": blocked}
+    if blocked:
+        entry["reason"] = reason
+    if state.store_raw_args:
+        entry["args"] = args
+    else:
+        entry["args_redacted"] = True
+    return entry, (reason if blocked else None)
+
+
 class Proxy:
     def __init__(self, upstream: list[str], log_dir: Path,
                  policy: Policy, block_on_hit: bool, block_unauthorized: bool,
@@ -156,108 +248,43 @@ class Proxy:
     # -- tools/list -----------------------------------------------------
     def _handle_tools(self, msg_id, result: dict) -> bool:
         tools = result.get("tools", []) if isinstance(result, dict) else []
-        entries, flagged = [], []
-        for tool in tools:
-            res = scan_tool(tool)
-            entries.append({"name": tool.get("name", "?"),
-                            "digest": digest_tool(tool),
-                            "flagged": bool(res["flagged"]),
-                            "rule_ids": sorted({h["rule"] for h in res["hits"]})})
-            if res["flagged"]:
-                flagged.append(tool.get("name", "?"))
-        self.capabilities = [scan_capability(tool) for tool in tools]
-        violations, warnings = annotation_violations(tools, self.capabilities)
-        mismatches = tier_mismatches(tools, self.capabilities)
-        capability_manifest = {
-            "source": "proxy",
-            "summary": summarise(self.capabilities),
-            "annotation_violations": violations,
-            "annotation_warnings": warnings,
-            "tier_mismatches": mismatches,
-            "tools": self.capabilities,
-        }
-        self.manifest = {"source": "proxy", "n_tools": len(entries),
-                         "tools": entries,
-                         "digest_algo": "sha256(canonical-json)"}
-        self.allowlist = {e["name"] for e in entries}
+        s = tools_scan(tools)
+        self.capabilities = s["capabilities"]
+        self.manifest = s["manifest"]
+        self.allowlist = s["allowlist"]
         self.log_dir.mkdir(parents=True, exist_ok=True)
         (self.log_dir / "tool_manifest.json").write_text(
             json.dumps(self.manifest, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8")
         (self.log_dir / "capability_manifest.json").write_text(
-            json.dumps(capability_manifest, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+            json.dumps(s["capability_manifest"], sort_keys=True, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8")
-        if flagged and self.block_on_hit:
+        if s["flagged"] and self.block_on_hit:
             self._error(msg_id, -32001,
-                        "mcp-guard blocked tools/list: poisoned tool(s) " + ", ".join(flagged))
+                        "mcp-guard blocked tools/list: poisoned tool(s) " + ", ".join(s["flagged"]))
             return False
-        if violations and self.require_annotations:
+        if s["violations"] and self.require_annotations:
             self._error(msg_id, -32003,
                         "mcp-guard blocked tools/list: missing or wrong capability annotations: "
-                        + ", ".join(sorted({v["name"] for v in violations})))
+                        + ", ".join(sorted({v["name"] for v in s["violations"]})))
             return False
-        if mismatches and self.block_tier_mismatch:
+        if s["mismatches"] and self.block_tier_mismatch:
             self._error(msg_id, -32004,
                         "mcp-guard blocked tools/list: annotations contradict capability tier: "
-                        + ", ".join(sorted({m["name"] for m in mismatches})))
+                        + ", ".join(sorted({m["name"] for m in s["mismatches"]})))
             return False
         return True
 
     def _batch_violation(self, args: dict) -> str | None:
         if not self.block_batch_destructive or not isinstance(args, dict):
             return None
-        for key in BATCH_KEYS:
-            if key not in args:
-                continue
-            inner = unwrap_payload(args[key])
-            destructive = [item["name"] for item in inner if item["tier"] == T3_DESTRUCTIVE]
-            if destructive:
-                return ("batch payload contains destructive command(s): "
-                        + ", ".join(sorted(set(destructive))))
-        return None
+        return batch_payload_violation(args)
 
     # -- tools/call -----------------------------------------------------
     def _handle_call(self, msg: dict) -> bool:
-        params = msg.get("params", {}) or {}
-        tool = params.get("name", "?")
-        args = params.get("arguments", {}) or {}
-        blocked, reason = False, ""
-        if self.block_unauthorized and self.allowlist is not None and tool not in self.allowlist:
-            blocked, reason = True, f"tool {tool!r} is not in the tools/list allowlist"
-        elif self.policy.allow_tools is not None and tool not in self.policy.allow_tools:
-            blocked, reason = True, f"tool {tool!r} is not in the policy allow_tools"
-        elif self.policy.max_tier_rank is not None:
-            tier = next((c["tier"] for c in self.capabilities if c["name"] == tool),
-                        "unknown")
-            rank = TIER_RANK.get(tier)
-            if rank is None:
-                blocked, reason = True, (f"tier unknown exceeds policy max_tier "
-                                         f"{self.policy.max_tier} (fail-closed)")
-            elif rank > self.policy.max_tier_rank:
-                blocked, reason = True, (f"tier {tier} exceeds policy max_tier "
-                                         f"{self.policy.max_tier}")
-        if not blocked:
-            violation = self.policy.violation(tool, args)
-            if violation:
-                blocked, reason = True, violation
-        if not blocked:
-            batch_reason = self._batch_violation(args)
-            if batch_reason:
-                blocked, reason = True, batch_reason
-
-        entry = {"seq": len(self.calls), "tool": tool,
-                 "arg_keys": sorted(args) if isinstance(args, dict) else [],
-                 "call_digest": _call_digest(tool, args),
-                 "blocked": blocked}
-        if blocked:
-            entry["reason"] = reason
-        if self.store_raw_args:
-            entry["args"] = args
-        else:
-            entry["args_redacted"] = True
+        entry, reason = call_decision(self, msg.get("params", {}) or {})
         self.calls.append(entry)
-
-        if blocked:
+        if reason:
             self._error(msg.get("id"), -32002, "mcp-guard blocked tools/call: " + reason)
             return False
         return True
