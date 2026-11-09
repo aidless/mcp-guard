@@ -1,0 +1,709 @@
+{
+ "source": "agent-desktop 1.2.0 tools/list (67 tools)",
+ "total": 67,
+ "counts": {
+  "T0_read_only": 21,
+  "T2_app_mutation": 29,
+  "T3_destructive_or_exec": 5,
+  "T1_local_state": 12
+ },
+ "annotations_present": 0,
+ "output_schema_present": 0,
+ "refusing_tools": [
+  "desktop_key_down",
+  "desktop_key_up",
+  "desktop_mouse_down",
+  "desktop_mouse_up"
+ ],
+ "escalation_param_tools": [
+  {
+   "name": "desktop_press",
+   "tier": "T2_app_mutation",
+   "rationale": "force=true bypasses the adapter's dangerous-shortcut refusal",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_key_down",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_key_up",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_launch",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "starts an arbitrary app path with args/env/cwd, i.e. code execution",
+   "escalation_params": [
+    "args",
+    "cwd",
+    "env",
+    "no_attach"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_close_app",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "quits an app; force=true terminates processes, unsaved work is lost",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_batch",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "opaque commands_json string can compose any other tool, up to 64 entries",
+   "escalation_params": [
+    "commands_json"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  }
+ ],
+ "tiers": [
+  {
+   "name": "desktop_snapshot",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_find",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_screenshot",
+   "tier": "T0_read_only",
+   "rationale": "T0 effect, but writes a file when output_path is set",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_get",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_is",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_click",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_double_click",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_triple_click",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_right_click",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_type",
+   "tier": "T2_app_mutation",
+   "rationale": "text into a terminal/chat app becomes command execution",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_set_value",
+   "tier": "T2_app_mutation",
+   "rationale": "value into a terminal/chat app becomes command execution",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_clear",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_focus",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_select",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_toggle",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_check",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_uncheck",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_expand",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_collapse",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_scroll",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_scroll_to",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_press",
+   "tier": "T2_app_mutation",
+   "rationale": "force=true bypasses the adapter's dangerous-shortcut refusal",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_key_down",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_key_up",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_hover",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_drag",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_mouse_move",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_mouse_click",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_mouse_down",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_mouse_up",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": true,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_mouse_wheel",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_launch",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "starts an arbitrary app path with args/env/cwd, i.e. code execution",
+   "escalation_params": [
+    "args",
+    "cwd",
+    "env",
+    "no_attach"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_close_app",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "quits an app; force=true terminates processes, unsaved work is lost",
+   "escalation_params": [
+    "force"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_list_windows",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_list_displays",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_list_apps",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_focus_window",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_resize_window",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_move_window",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_minimize",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_maximize",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_restore",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_list_surfaces",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_open_system_surface",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_list_notifications",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_dismiss_notification",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_dismiss_all_notifications",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "bulk-removes the user's notification history",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_notification_action",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_clipboard_get",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_clipboard_set",
+   "tier": "T2_app_mutation",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_clipboard_clear",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "destroys shared clipboard content",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_wait",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_status",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_permissions",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_version",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_batch",
+   "tier": "T3_destructive_or_exec",
+   "rationale": "opaque commands_json string can compose any other tool, up to 64 entries",
+   "escalation_params": [
+    "commands_json"
+   ],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_skills_list",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_skills_get",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_skills_path",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_session_start",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_session_end",
+   "tier": "T1_local_state",
+   "rationale": "stops cursors and prunes session snapshots",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_session_list",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_session_gc",
+   "tier": "T1_local_state",
+   "rationale": "deletes ended session directories",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_cursor_overlay_enable",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_cursor_overlay_disable",
+   "tier": "T1_local_state",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_trace_show",
+   "tier": "T0_read_only",
+   "rationale": "",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  },
+  {
+   "name": "desktop_trace_export",
+   "tier": "T0_read_only",
+   "rationale": "T0 effect, but writes an HTML file",
+   "escalation_params": [],
+   "refuses": false,
+   "annotations": null,
+   "has_output_schema": false
+  }
+ ]
+}

@@ -8,6 +8,9 @@
     mcp-guard-scan tools.json            # 扫描 + 哈希钉选（stdout 逐工具 JSON）
     mcp-guard-scan tools.json --pin snap.json   # 顺带把钉选快照写盘，下次可比漂移
     mcp-guard-scan tools.json --fail-on-hit     # 有命中时退出码 1（给 CI 门禁用）
+    mcp-guard-scan tools.json --capability      # 额外输出能力分层（T0..T3）
+    mcp-guard-scan tools.json --fail-on-capability  # 有 T3 破坏/执行工具即退出码 1
+    mcp-guard-scan tools.json --require-annotations # 破坏/写入工具缺显式注解即退出码 1
 
 `mcp-guard` 仍然是评测运行器（run_eval:main），保留以兼容既有文档与脚本。
 """
@@ -19,6 +22,12 @@ import pathlib
 import sys
 
 from .scan import check_drift, digest_tool, scan_tool
+from .capability import (
+    T3_DESTRUCTIVE,
+    annotation_violations,
+    scan_capability,
+    summarise,
+)
 
 
 def load_tools(path: str) -> list[dict]:
@@ -39,9 +48,17 @@ def main(argv: list[str] | None = None) -> int:
                     help="钉选快照文件（不存在则新建，存在则用于漂移比对）")
     ap.add_argument("--fail-on-hit", action="store_true",
                     help="只要有工具被命中，退出码就是 1（CI 门禁用）")
+    ap.add_argument("--capability", action="store_true",
+                    help="对每个工具额外输出能力分层（投毒扫描不覆盖的破坏/执行面）")
+    ap.add_argument("--fail-on-capability", action="store_true",
+                    help="存在 T3 破坏或任意执行能力时退出码 1（隐含 --capability）")
+    ap.add_argument("--require-annotations", action="store_true",
+                    help="能写入/破坏的工具缺少显式 readOnlyHint/destructiveHint 时退出码 1（隐含 --capability）")
     args = ap.parse_args(argv)
 
     tools = load_tools(args.tools)
+    want_capability = args.capability or args.fail_on_capability or args.require_annotations
+    capability_results: list[dict] = []
 
     pinned: dict[str, str] = {}
     snapshots: dict[str, dict] = {}
@@ -57,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         if result["flagged"]:
             flagged += 1
         print(json.dumps(result, ensure_ascii=False))
+        if want_capability:
+            capability = scan_capability(t)
+            capability_results.append(capability)
+            print(json.dumps({"capability": capability}, ensure_ascii=False))
         if pinned:
             print(json.dumps(check_drift(t, pinned, snapshots), ensure_ascii=False))
         name = t.get("name", "?")
@@ -69,9 +90,26 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
 
-    print(json.dumps({"scanned": len(tools), "flagged": flagged}, ensure_ascii=False),
-          file=sys.stderr)
-    return 1 if (args.fail_on_hit and flagged) else 0
+    summary = {"scanned": len(tools), "flagged": flagged}
+    violations: list[dict] = []
+    warnings: list[dict] = []
+    if want_capability:
+        summary["capability"] = summarise(capability_results)
+    if args.require_annotations:
+        violations, warnings = annotation_violations(tools, capability_results)
+        summary["annotation_violations"] = len(violations)
+        summary["annotation_warnings"] = len(warnings)
+        print(json.dumps({"annotations": {"violations": violations, "warnings": warnings}},
+                         ensure_ascii=False))
+    print(json.dumps(summary, ensure_ascii=False), file=sys.stderr)
+
+    destructive = summary.get("capability", {}).get("destructive", [])
+    fail = (
+        (args.fail_on_hit and flagged)
+        or (args.fail_on_capability and destructive)
+        or (args.require_annotations and violations)
+    )
+    return 1 if fail else 0
 
 
 if __name__ == "__main__":

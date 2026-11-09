@@ -12,6 +12,10 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python -m pytest tests/ -q
+      - name: Stdio proxy integration tests
+        run: python -m pytest tests/test_proxy.py -q
+      - name: Capability rulepack agrees with agent-desktop case ledger
+        run: python scripts/capability_crosscheck.py
       - run: python run_eval.py --offline
       - name: README ablation numbers stay recomputable
         run: python scripts/measure_rule_ablation.py --check

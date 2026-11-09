@@ -49,26 +49,79 @@ python3 -m venv .venv && .venv/bin/pip install -e . && .venv/bin/pip install pyt
 ## 快速开始
 
 ```bash
-# 安装后——两个入口，职责不同
+# 安装后——三个入口，职责不同
 mcp-guard --offline                                      # 评测运行器：跑离线基准集
 mcp-guard --scan-file examples/whatsapp_tools.json       # 评测运行器：也能扫文件
-mcp-guard-scan examples/whatsapp_tools.json              # 扫描器：只扫 / 钉选 / 漂移
+mcp-guard-scan examples/whatsapp_tools.json              # 扫描器：投毒 / 钉选 / 漂移
+mcp-guard-scan examples/whatsapp_tools.json --capability  # 额外输出 T0..T3 能力分层
+mcp-guard-proxy --log-dir runs/gate1 -- <server-cmd...>  # 实时代理：拦截 + 落观测证据
 
 # 未安装时也可直接跑
 python3 run_eval.py --offline
 python3 run_eval.py --scan-file examples/whatsapp_tools.json
 python3 -m guard.cli examples/whatsapp_tools.json
+python3 -m guard.cli examples/whatsapp_tools.json --capability
+python3 -m guard.proxy --log-dir runs/gate1 -- python3 tests/fake_mcp_server.py
 ```
 
-### 两个命令入口的分工（2026-10-28 修的语义落差）
+### 能力层：投毒扫描绿不等于工具安全
+
+投毒规则回答「描述有没有试图操纵模型」，不回答「一个诚实的工具能不能杀进程、
+启动任意程序」。`guard/capability.py` 是第二条正交轴：把工具分成
+`T0_read` / `T1_local` / `T2_mutate` / `T3_destructive_or_exec` / `unknown`。
+规则是显式、可审、离线的词法启发式；**`unknown` 表示不认识，绝不冒充只读**。
+
+```bash
+mcp-guard-scan tools.json --capability                 # 输出分层 + 摘要
+mcp-guard-scan tools.json --fail-on-capability         # 有 T3 工具即退出码 1
+mcp-guard-scan tools.json --require-annotations       # 写入/破坏工具缺显式注解即退出码 1
+```
+
+`--require-annotations` 要求写入工具显式 `readOnlyHint: false`，T3 工具还要
+`destructiveHint: true`；只读工具缺注解只记 warning，不红。批量工具的
+`commands_json` / `steps` 等载荷会被解包，内层命令也参与分层；没有默认载荷时
+标 `opaque`，不静默当成安全。
+
+案例：对 `agent-desktop@1.2.0` 的 67 个 MCP 工具，投毒扫描 0 命中，但能力层给出
+21 / 12 / 29 / 5 和 5 个 T3（`launch`、`close_app`、`batch`、
+`dismiss_all_notifications`、`clipboard_clear`）。`scripts/capability_crosscheck.py`
+把启发式结果与案例显式台账逐工具对表，CI 会在漂移时变红。
+
+规则边界：分层依据是工具名、描述和 schema，不是运行时行为；不声明检出率，
+不替代权限系统，也不把词法命中当作最终安全裁决。
+
+### 三个命令入口的分工（2026-10-28 修的语义落差）
 
 | 命令 | 实际做什么 | 什么时候用 |
 |---|---|---|
 | `mcp-guard`（= `run_eval:main`） | 离线**评测**运行器：`--offline` 跑基准集算 recall/fpr，`--scan-file` 也能扫文件 | 复现指标、回归 |
-| `mcp-guard-scan`（= `guard.cli:main`） | 只做**扫描 + 哈希钉选 + 漂移检测**，逐工具输出 JSON 行；`--fail-on-hit` 时有命中即退出码 1 | 接进 CI 门禁 / agent 启动前的工具体检 |
+| `mcp-guard-scan`（= `guard.cli:main`） | **投毒扫描 + 哈希钉选 + 漂移检测**，可选 `--capability` 分层、`--fail-on-capability`、`--require-annotations`；逐工具输出 JSON 行 | 接进 CI 门禁 / agent 启动前的工具体检 |
+| `mcp-guard-proxy`（= `guard.proxy:main`） | stdio MCP 代理：在 `tools/list` 扫描并钉选 `tool_manifest.json`，在 `tools/call` 记录脱敏 `tool_calls.json`；可选阻断命中、越权调用和危险参数 | 实时 agent 运行前的 BEFORE 门禁 + 观测侧证据 |
 
-两者共用 `guard.scan` 的同一套扫描逻辑，扫描结果完全一致；名字曾经对不上
-（`mcp-guard --offline` 跑的是评测而不是扫描），现在拆开了。
+前两者共用 `guard.scan` 的同一套扫描逻辑，扫描结果完全一致；代理也复用同一套
+扫描与 digest。名字曾经对不上（`mcp-guard --offline` 跑的是评测而不是扫描），
+现在拆开了。
+
+### 实时代理（`mcp-guard-proxy`）
+
+代理位于客户端与上游 MCP server 之间，按换行分隔的 JSON-RPC 2.0 转发消息。
+`tools/list` 返回时写 `tool_manifest.json`（工具名 + digest + 命中规则）；
+能力层同时写 `capability_manifest.json`（T0..T3 + 注解违规）；
+`tools/call` 到达时写 `tool_calls.json`，默认只保存参数键名和
+`call_digest`，不保存原始参数值。`--block-on-hit` 拒绝把命中规则的工具交给
+客户端；`--block-unauthorized` 拒绝白名单外的调用；`--block-batch-destructive`
+解包 batch 载荷并拒绝内层 T3 命令；`--require-annotations` 拒绝缺显式能力注解的
+工具面；`--deny-arg-regex` 可拒绝匹配的字符串参数。`--store-raw-args` 是本地调试
+显式开关，不应在可能提交 run 目录的场景使用。
+
+```bash
+mcp-guard-proxy --log-dir runs/gate1 --block-unauthorized -- npx -y some-mcp
+python3 -m pytest tests/test_proxy.py -q   # 8 条真实 subprocess 集成测试
+```
+
+边界：代理只覆盖 stdio newline framing，不处理 `Content-Length` framing；
+它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与 `agent-trace` 能
+消费的观测记录，不负责模型评分，也不把词法命中当作最终安全裁决。
 
 `--offline` 的实测输出（19 条 poison / 11 条 benign）：
 
@@ -308,6 +361,8 @@ schema，报告里逐条写明了这些边界。
   （BEFORE 门禁 / AFTER 审计 / trace 胶水）。胶水层落盘在 `auditable-llm-eval` 仓
   `agent_platform/trace.py`（一条命令产出带 sha256 的 trace），工具绑定（allowlist）
   与实际调用（tool_calls）两层都已接进来。
+- [x] stdio 代理入口：本地 `guard/proxy.py` + 5 条集成测试已落地，README/CI
+  已接线；**提交与发布仍需单独授权**。
 - [ ] 让 runner 从推理路径**自动**采集 tool_calls（当前是喂入观测证据，
   因为本仓评测腿走 ollama `/api/generate` 纯文本补全、无原生 tool_calls 字段；
   自动采集需换 chat 接口 + function-calling 模型，属另一增量）。

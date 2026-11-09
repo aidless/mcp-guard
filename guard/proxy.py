@@ -1,0 +1,344 @@
+"""mcp-guard-proxy -- stdio MCP proxy with an inline BEFORE gate.
+
+The offline scanner answers "are these tool definitions poisoned" for a JSON
+file. This proxy answers it for a *live* server, and keeps answering while the
+agent runs:
+
+  client <--newline JSON--> proxy <--newline JSON--> upstream MCP server
+
+What it does:
+  * on the `tools/list` response: scans every tool, writes `tool_manifest.json`
+    (name + digest), and with `--block-on-hit` refuses to hand poisoned tools to
+    the client;
+  * on the `tools/list` response also writes `capability_manifest.json`: a
+    deterministic T0..T3 classification of what each tool can do;
+  * on every `tools/call`: checks the tool is in the manifest (allowlist) and
+    that no string argument matches a deny regex; with `--block-unauthorized`
+    the call is answered with a JSON-RPC error instead of being forwarded;
+    with `--block-batch-destructive` it unwraps an opaque batch payload and
+    blocks a call whose inner command is T3;
+  * records every call, redacted by default (keys + digest, never raw values),
+    into `tool_calls.json` -- the same shape `agent-platform trace` consumes.
+
+Transport: MCP stdio is newline-delimited JSON-RPC 2.0. Content-Length framing
+is not handled (the current MCP stdio spec uses newline framing).
+
+Usage:
+    mcp-guard-proxy --log-dir runs/gate1 --block-unauthorized -- <server-cmd...>
+    mcp-guard-proxy --log-dir runs/gate1 --policy policy.json -- npx -y some-mcp
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import sys
+import threading
+from pathlib import Path
+
+from .scan import digest_tool, scan_tool
+from .capability import (
+    T3_DESTRUCTIVE,
+    annotation_violations,
+    scan_capability,
+    summarise,
+    unwrap_payload,
+)
+from .capability import BATCH_KEYS
+
+
+def _canon_args(args: dict) -> str:
+    return json.dumps(args or {}, sort_keys=True, ensure_ascii=False)
+
+
+def _call_digest(tool: str, args: dict) -> str:
+    payload = json.dumps({"tool": tool, "args": args or {}},
+                         sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _strings(value, out: list[str]) -> None:
+    if isinstance(value, str):
+        out.append(value)
+    elif isinstance(value, dict):
+        for v in value.values():
+            _strings(v, out)
+    elif isinstance(value, list):
+        for v in value:
+            _strings(v, out)
+
+
+class Policy:
+    def __init__(self, deny_global: list[str] | None = None,
+                 deny_by_tool: dict[str, list[str]] | None = None):
+        self.deny_global = [re.compile(p, re.I) for p in (deny_global or [])]
+        self.deny_by_tool = {name: [re.compile(p, re.I) for p in pats]
+                             for name, pats in (deny_by_tool or {}).items()}
+
+    @classmethod
+    def load(cls, path: Path | None, cli_patterns: list[str] | None = None) -> "Policy":
+        deny_global = list(cli_patterns or [])
+        deny_by_tool: dict[str, list[str]] = {}
+        if path and path.exists():
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            deny_global += doc.get("deny_arg_regex", [])
+            for name, spec in doc.get("tools", {}).items():
+                deny_by_tool[name] = spec.get("deny_arg_regex", [])
+        return cls(deny_global, deny_by_tool)
+
+    def violation(self, tool: str, args: dict) -> str | None:
+        values: list[str] = []
+        _strings(args, values)
+        for rx in self.deny_global + self.deny_by_tool.get(tool, []):
+            for value in values:
+                if rx.search(value):
+                    return f"argument matches deny pattern {rx.pattern!r}"
+        return None
+
+
+class Proxy:
+    def __init__(self, upstream: list[str], log_dir: Path,
+                 policy: Policy, block_on_hit: bool, block_unauthorized: bool,
+                 store_raw_args: bool = False,
+                 block_batch_destructive: bool = False,
+                 require_annotations: bool = False):
+        self.upstream = upstream
+        self.log_dir = log_dir
+        self.policy = policy
+        self.block_on_hit = block_on_hit
+        self.block_unauthorized = block_unauthorized
+        self.block_batch_destructive = block_batch_destructive
+        self.require_annotations = require_annotations
+        self.store_raw_args = store_raw_args
+        self.allowlist: set[str] | None = None
+        self.manifest: dict | None = None
+        self.capabilities: list[dict] = []
+        self.calls: list[dict] = []
+        self.pending: dict[object, str] = {}
+        self.lock = threading.Lock()
+        self.write_lock = threading.Lock()
+        self.proc: subprocess.Popen | None = None
+
+    # -- output helpers -------------------------------------------------
+    def _to_client(self, message: dict) -> None:
+        with self.write_lock:
+            sys.stdout.write(json.dumps(message, ensure_ascii=False) + "\n")
+            sys.stdout.flush()
+
+    def _to_upstream(self, message: dict) -> None:
+        assert self.proc and self.proc.stdin
+        with self.write_lock:
+            self.proc.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
+            self.proc.stdin.flush()
+
+    def _error(self, msg_id, code: int, text: str) -> None:
+        self._to_client({"jsonrpc": "2.0", "id": msg_id,
+                         "error": {"code": code, "message": text}})
+
+    # -- tools/list -----------------------------------------------------
+    def _handle_tools(self, msg_id, result: dict) -> bool:
+        tools = result.get("tools", []) if isinstance(result, dict) else []
+        entries, flagged = [], []
+        for tool in tools:
+            res = scan_tool(tool)
+            entries.append({"name": tool.get("name", "?"),
+                            "digest": digest_tool(tool),
+                            "flagged": bool(res["flagged"]),
+                            "rule_ids": sorted({h["rule"] for h in res["hits"]})})
+            if res["flagged"]:
+                flagged.append(tool.get("name", "?"))
+        self.capabilities = [scan_capability(tool) for tool in tools]
+        violations, warnings = annotation_violations(tools, self.capabilities)
+        capability_manifest = {
+            "source": "proxy",
+            "summary": summarise(self.capabilities),
+            "annotation_violations": violations,
+            "annotation_warnings": warnings,
+            "tools": self.capabilities,
+        }
+        self.manifest = {"source": "proxy", "n_tools": len(entries),
+                         "tools": entries,
+                         "digest_algo": "sha256(canonical-json)"}
+        self.allowlist = {e["name"] for e in entries}
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        (self.log_dir / "tool_manifest.json").write_text(
+            json.dumps(self.manifest, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        (self.log_dir / "capability_manifest.json").write_text(
+            json.dumps(capability_manifest, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        if flagged and self.block_on_hit:
+            self._error(msg_id, -32001,
+                        "mcp-guard blocked tools/list: poisoned tool(s) " + ", ".join(flagged))
+            return False
+        if violations and self.require_annotations:
+            self._error(msg_id, -32003,
+                        "mcp-guard blocked tools/list: missing or wrong capability annotations: "
+                        + ", ".join(sorted({v["name"] for v in violations})))
+            return False
+        return True
+
+    def _batch_violation(self, args: dict) -> str | None:
+        if not self.block_batch_destructive or not isinstance(args, dict):
+            return None
+        for key in BATCH_KEYS:
+            if key not in args:
+                continue
+            inner = unwrap_payload(args[key])
+            destructive = [item["name"] for item in inner if item["tier"] == T3_DESTRUCTIVE]
+            if destructive:
+                return ("batch payload contains destructive command(s): "
+                        + ", ".join(sorted(set(destructive))))
+        return None
+
+    # -- tools/call -----------------------------------------------------
+    def _handle_call(self, msg: dict) -> bool:
+        params = msg.get("params", {}) or {}
+        tool = params.get("name", "?")
+        args = params.get("arguments", {}) or {}
+        blocked, reason = False, ""
+        if self.block_unauthorized and self.allowlist is not None and tool not in self.allowlist:
+            blocked, reason = True, f"tool {tool!r} is not in the tools/list allowlist"
+        elif self.policy.violation(tool, args):
+            blocked = True
+            reason = self.policy.violation(tool, args) or "argument policy violation"
+        else:
+            batch_reason = self._batch_violation(args)
+            if batch_reason:
+                blocked, reason = True, batch_reason
+
+        entry = {"seq": len(self.calls), "tool": tool,
+                 "arg_keys": sorted(args) if isinstance(args, dict) else [],
+                 "call_digest": _call_digest(tool, args),
+                 "blocked": blocked}
+        if blocked:
+            entry["reason"] = reason
+        if self.store_raw_args:
+            entry["args"] = args
+        else:
+            entry["args_redacted"] = True
+        self.calls.append(entry)
+
+        if blocked:
+            self._error(msg.get("id"), -32002, "mcp-guard blocked tools/call: " + reason)
+            return False
+        return True
+
+    # -- io loops -------------------------------------------------------
+    def _client_loop(self) -> None:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                # Not ours to judge; pass the raw line through untouched.
+                with self.write_lock:
+                    assert self.proc and self.proc.stdin
+                    self.proc.stdin.write(line + "\n")
+                    self.proc.stdin.flush()
+                continue
+            method = msg.get("method")
+            if method == "tools/list" and "id" in msg:
+                with self.lock:
+                    self.pending[msg["id"]] = method
+            elif method == "tools/call" and not self._handle_call(msg):
+                continue
+            self._to_upstream(msg)
+        if self.proc and self.proc.stdin:
+            self.proc.stdin.close()
+
+    def _upstream_loop(self) -> None:
+        assert self.proc and self.proc.stdout
+        for line in self.proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                with self.write_lock:
+                    sys.stdout.write(line + "\n")
+                    sys.stdout.flush()
+                continue
+            msg_id = msg.get("id")
+            method = None
+            if msg_id is not None:
+                with self.lock:
+                    method = self.pending.pop(msg_id, None)
+            if method == "tools/list":
+                if not self._handle_tools(msg_id, msg.get("result", {})):
+                    continue
+            self._to_client(msg)
+
+    def run(self) -> int:
+        self.proc = subprocess.Popen(
+            self.upstream, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=sys.stderr, text=True, bufsize=1)
+        t_client = threading.Thread(target=self._client_loop, daemon=True)
+        t_upstream = threading.Thread(target=self._upstream_loop, daemon=True)
+        t_client.start()
+        t_upstream.start()
+        t_upstream.join()
+        t_client.join(timeout=2)
+        self._flush_calls()
+        return 0 if self.proc.returncode in (0, None) else 1
+
+    def _flush_calls(self) -> None:
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        tools_called = sorted({c["tool"] for c in self.calls})
+        record = {
+            "source": "proxy",
+            "n_calls": len(self.calls),
+            "n_tools_called": len(tools_called),
+            "tools_called": tools_called,
+            "args_policy": "raw" if self.store_raw_args else "digest-only",
+            "calls": self.calls,
+        }
+        (self.log_dir / "tool_calls.json").write_text(
+            json.dumps(record, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="mcp-guard-proxy", description=__doc__.split("\n\n")[0])
+    ap.add_argument("--log-dir", required=True, type=Path,
+                    help="where tool_manifest.json / tool_calls.json are written")
+    ap.add_argument("--policy", type=Path, default=None,
+                    help="JSON policy: {deny_arg_regex: [...], tools: {name: {...}}}")
+    ap.add_argument("--deny-arg-regex", action="append", default=[],
+                    help="global regex; any string argument matching it blocks the call")
+    ap.add_argument("--block-on-hit", action="store_true",
+                    help="refuse tools/list when any tool is poisoned")
+    ap.add_argument("--block-unauthorized", action="store_true",
+                    help="refuse tools/call for a tool not in the tools/list manifest")
+    ap.add_argument("--block-batch-destructive", action="store_true",
+                    help="unwrap batch payloads and refuse inner T3 commands")
+    ap.add_argument("--require-annotations", action="store_true",
+                    help="refuse tools/list when mutating tools lack explicit capability annotations")
+    ap.add_argument("--store-raw-args", action="store_true",
+                    help="debug only: persist raw call arguments (default: digest-only)")
+    ap.add_argument("upstream", nargs=argparse.REMAINDER,
+                    help="-- <upstream command...>")
+    args = ap.parse_args(argv)
+
+    upstream = args.upstream
+    if upstream and upstream[0] == "--":
+        upstream = upstream[1:]
+    if not upstream:
+        ap.error("missing upstream command after --")
+    policy = Policy.load(args.policy, args.deny_arg_regex)
+    proxy = Proxy(upstream, args.log_dir, policy,
+                  block_on_hit=args.block_on_hit,
+                  block_unauthorized=args.block_unauthorized,
+                  store_raw_args=args.store_raw_args,
+                  block_batch_destructive=args.block_batch_destructive,
+                  require_annotations=args.require_annotations)
+    return proxy.run()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
