@@ -426,6 +426,9 @@ schema，报告里逐条写明了这些边界。
 - [ ] 评测集扩到 50+30，对抗改写（同义/分词/编码）剩余变体
 - [x] 真实 MCP server.json 批量扫描报告（2026-11-02：64 个真实工具，0 误报；
   见 `reports/REAL_CORPUS_SCAN_20261102.md`）
+- [x] 全链路 e2e 演示（2026-11-09：`demo.sh` 六条腿——静态扫描/漂移钉选/stdio
+  观测/stdio 阻断/HTTP 门禁/一致性审计——全部真实子进程，腿级自证，
+  任何一腿失败退出非零；`tests/test_demo_e2e.py` 把它接进套件）。
 - [ ] 与 agent-redteam 剧本联动（93 测试复用）
 - [x] CI 门禁自证（`scripts/mutation_control.py` + `mutation-control` workflow：
   证明 pytest 门禁在代码被改坏时**必须**变红，而不是把失败吞掉）
