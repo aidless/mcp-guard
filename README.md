@@ -1,5 +1,7 @@
 # mcp-guard —— MCP 毒工具扫描 + 版本钉选
 
+> **English TL;DR**: An offline, deterministic scanner and hash-pinner for poisoned MCP tool definitions: a public rule pack flags known patterns (imperative tags, credential reads, exfil parameters, recipient rewrites, encoded exfil) while sha256 pinning turns description drift into alarms. Install from source, then `mcp-guard --offline` reproduces the benchmark and `mcp-guard-scan` does scan/pin/drift with zero runtime dependencies. Stated boundary: lexical rules prove coverage of known patterns with articulated limits — a first-pass filter plus human review, not a verdict engine.
+
 **An offline, deterministic scanner and hash-pinner for poisoned MCP tool definitions.**
 No model calls, no network, zero runtime dependencies.
 
