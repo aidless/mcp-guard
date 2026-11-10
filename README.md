@@ -34,7 +34,17 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 
 ## 安装
 
-**PyPI 尚未发布**（截至 2026-10-28）。`pip install mcp-guard` 会失败，请从源码安装：
+**PyPI 尚未发布**（截至 2026-11-10）。两种免 PyPI 安装方式：
+
+```bash
+# 方式一：GitHub Release 工件（v0.2.0，含 SHA256SUMS）
+pip install https://github.com/aidless/mcp-guard/releases/download/v0.2.0/mcp_guard-0.2.0-py3-none-any.whl
+
+# 方式二：直接从仓库（公开，可匿名）
+pip install git+https://github.com/aidless/mcp-guard
+```
+
+从源码开发：
 
 ```bash
 git clone https://github.com/aidless/mcp-guard && cd mcp-guard
