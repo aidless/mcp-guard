@@ -3,7 +3,7 @@ name: publish
 # PyPI 发布走 OIDC 可信发布（Trusted Publishing），不存任何长期 API token。
 # 触发：手动 workflow_dispatch，或推 v* tag。
 # 前置：PyPI 账号里已登记 pending publisher（项目尚不存在时用）——
-#   PyPI Project Name: mcp-guard
+#   PyPI Project Name: mcp-guard-scan   （原名 mcp-guard 与既有 mcpguard 撞名，永久不可用）
 #   Owner: aidless
 #   Repository name: mcp-guard
 #   Workflow name: publish.yml

@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp-guard"
+name = "mcp-guard-scan"
 version = "0.2.0"
 description = "Offline scanner for poisoned MCP tool descriptions, with version pinning and drift detection"
 readme = "README.md"

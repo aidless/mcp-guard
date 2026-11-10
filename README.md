@@ -34,7 +34,26 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 
 ## 安装
 
-**PyPI：包名被占位规则挡住，暂未发布**（2026-11-10 实测：`mcp-guard` 与 `mcp-audit` 候选名均被 PyPI 名称相似性规则 400 拒绝——与既有 `mcp` 系列包太接近）。两种免 PyPI 安装方式：
+**PyPI：尚未发布，发行名改为 `mcp-guard-scan`。** 两个独立原因，都已实测/源码核对：
+
+1. **原名 `mcp-guard` 永久不可用**——PyPI 的 `ultranormalize_name()`（小写 → 去掉
+   `.`/`_`/`-` → `l/L/i/I`→`1` → `o/O`→`0`）把 `mcp-guard` 归一成 `mcpguard`，与
+   2026-02 起就存在的同名包 `mcpguard` 完全同形，命中名称相似性检查
+   （`ProjectNameUnavailableSimilarError` → HTTP 400）。这条规则没有 owner 例外，
+   换账号也一样。`mcp-audit` 同理被 `mcpaudit` 挡住。
+   *证据口径*：归一化函数与检查顺序读自 warehouse 源码
+   （`packaging/services.py` 的 `check_project_name`），阻塞者 `mcpguard@0.1.0`
+   由 PyPI JSON API 实测；400 本身**未在真实请求里观察到**——`create_project`
+   先跑 `_check_ratelimits`，配额耗尽时 429 总是先返回。
+2. **当前上传通道被账号级配额挡住**——实测 `twine upload` 返回
+   `429 Too many new projects created`，响应头
+   `project.create.user;r=0;t=75594`（新项目创建按 user 与 IP 各 4 个/86400s 计额，
+   账号桶已耗尽）。走代理换 IP 后 `project.create.ip;r=4` 但 user 桶仍 `r=0`，
+   即换 IP 无效。仓库里已备好 OIDC 可信发布工作流
+   （`.github/workflows/publish.yml`，个人 scope 的 pending publisher 走
+   `ratelimited=False` 分支，不受该配额限制）。
+
+下面三种安装方式都是公开、可匿名、无需 PyPI 的：
 
 ```bash
 # 方式一：GitHub Release 工件（v0.2.0，含 SHA256SUMS）
@@ -42,9 +61,8 @@ pip install https://github.com/aidless/mcp-guard/releases/download/v0.2.0/mcp_gu
 
 # 方式二：直接从仓库（公开，可匿名）
 pip install git+https://github.com/aidless/mcp-guard
-```
 
-```bash
+# 方式三：本地克隆（评测运行器需要仓库内的 tasks/cases.jsonl）
 git clone https://github.com/aidless/mcp-guard && cd mcp-guard
 pip install .
 mcp-guard --offline

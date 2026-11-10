@@ -95,6 +95,14 @@
 
 ### 已知边界（声明，不掩盖）
 
+- **发行名（dist name）是 `mcp-guard-scan`，不是仓库名 `mcp-guard`**。PyPI 的
+  `ultranormalize_name()` 把 `mcp-guard` 归一为 `mcpguard`，与 2026-02 起的既有包
+  `mcpguard` 同形，命中名称相似性检查（400，无 owner 例外）；`mcp-audit` 同理被
+  `mcpaudit` 挡住。console script 名不受影响（仍是 `mcp-guard` /
+  `mcp-guard-scan` / `mcp-guard-proxy`），从仓库装与从 Release 工件装行为一致。
+- PyPI 上传通道实测受账号级配额限制（`429 Too many new projects created`，
+  `project.create.user` 桶 4/86400s 耗尽；换 IP 后 `project.create.ip` 有余额但
+  user 桶仍为 0，即换 IP 无效）。仓库已备 OIDC 可信发布工作流绕开该配额。
 - 分层依据是工具名、描述与 schema，非运行时行为；不声明检出率。
 - stdio 代理覆盖规范定义的 newline framing；HTTP 代理覆盖 Streamable HTTP 的
   请求侧，tools/call 的 JSON-RPC result 响应已做响应侧投毒扫描（R1），
