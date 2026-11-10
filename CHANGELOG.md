@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1 — 2026-11-10
+
+### Changed
+
+- **发行名（dist name）改为 `mcp-guard-scan`**。`mcp-guard` 在 PyPI 上永久不可用：
+  `ultranormalize_name()` 把它归一为 `mcpguard`，与 2026-02 起的既有包同形，
+  命中名称相似性检查（`ProjectNameUnavailableSimilarError` → HTTP 400，无 owner 例外）。
+  `mcp-audit` 同理被 `mcpaudit` 挡住。
+- **console script 名一个都没改**：`mcp-guard` / `mcp-guard-scan` / `mcp-guard-proxy`
+  保持原样，所以既有文档、CI 脚本和用户习惯都不受影响；只有 `pip install` /
+  `pip show` 看到的发行名变了。
+- 新增 `tests/test_dist_name.py`：锁死发行名、ultranormalize 撞名判据、三个
+  script 入口点、以及 `version` 必须等于 CHANGELOG 最新一节（4 条，双向变异验证）。
+
 ## 0.2.0 — 2026-11-09
 
 ### Added
