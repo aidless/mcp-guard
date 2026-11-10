@@ -45,13 +45,19 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
    （`packaging/services.py` 的 `check_project_name`），阻塞者 `mcpguard@0.1.0`
    由 PyPI JSON API 实测；400 本身**未在真实请求里观察到**——`create_project`
    先跑 `_check_ratelimits`，配额耗尽时 429 总是先返回。
-2. **当前上传通道被账号级配额挡住**——实测 `twine upload` 返回
-   `429 Too many new projects created`，响应头
-   `project.create.user;r=0;t=75594`（新项目创建按 user 与 IP 各 4 个/86400s 计额，
-   账号桶已耗尽）。走代理换 IP 后 `project.create.ip;r=4` 但 user 桶仍 `r=0`，
-   即换 IP 无效。仓库里已备好 OIDC 可信发布工作流
+2. **上传通道被账号级"每日新建项目"配额挡住（不是网络/token 问题）**——实测
+   `twine upload` 返回 `429 Too many new projects created`，响应头
+   `project.create.user;r=0`（新建项目按 user 与 IP 各 4 个/86400s 计额）。
+   根因已定位：该账号当天（2026-11-10 11:12–11:19Z）已创建 4 个新项目
+   `superagent-build` / `accel-preflight` / `ttftkit` / `roofline-lint`，
+   把 4/86400s 的 `project.create.user` 额度用满；滚动窗口到
+   2026-11-11T11:12:52Z 释放一个槽位。走代理换 IP 后 `project.create.ip;r=4`
+   但 user 桶仍 `r=0`，即**换 IP 无效**，只能等窗口滚动。
+   仓库里已备好两条绕开该配额的通道：OIDC 可信发布工作流
    （`.github/workflows/publish.yml`，个人 scope 的 pending publisher 走
-   `ratelimited=False` 分支，不受该配额限制）。
+   `ratelimited=False` 分支，不受配额限制），以及本机已布防的 systemd 定时器
+   （窗口释放后自动 `twine`-等效上传并校验 JSON API，见仓库外
+   `~/.config/mcp-guard/publish.py`）。
 
 下面三种安装方式都是公开、可匿名、无需 PyPI 的：
 

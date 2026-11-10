@@ -14,6 +14,14 @@
 - 新增 `tests/test_dist_name.py`：锁死发行名、ultranormalize 撞名判据、三个
   script 入口点、以及 `version` 必须等于 CHANGELOG 最新一节（4 条，双向变异验证）。
 
+### Fixed / 运维
+
+- 首次 PyPI 上传被 `429 Too many new projects created` 挡住。已定位根因：该账号
+  当日（2026-11-10 11:12–11:19Z）创建了 4 个新项目（superagent-build / accel-preflight /
+  ttftkit / roofline-lint），用满 `project.create.user` 4/86400s 配额；滚动窗口
+  2026-11-11T11:12:52Z 释放。已布防 systemd user timer，窗口释放后自动上传并校验
+  PyPI JSON API（幂等，遇 429 静默重试）。注：v0.2.1 的 PyPI 首发晚于 tag 发布时间。
+
 ## 0.2.0 — 2026-11-09
 
 ### Added
