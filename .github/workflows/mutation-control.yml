@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
           check-latest: false
 
-      - run: pip install -r requirements.txt
+      - run: pip install --require-hashes -r requirements.ci.lock
 
       - name: Assert pristine checkout
         run: |
