@@ -16,6 +16,8 @@ on:
     - cron: "0 6 * * 1" # Mondays 06:00 UTC
   workflow_dispatch: {}
 
+permissions:
+  contents: read
 jobs:
   scan:
     runs-on: ubuntu-latest
