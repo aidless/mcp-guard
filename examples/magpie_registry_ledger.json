@@ -1,0 +1,98 @@
+{
+ "server": "magpie-community plugin registry (2026-11-09 snapshot)",
+ "note": "names-only registry: 23 real community plugin tools with NO description and NO schema. Hand-judged tiers: only list_tools carries name-level evidence ('list' = read); every other tool must stay unknown. This pins the promise that the rulepack never defaults a description-less tool to read-only. CORRECTION 2026-11-09: get_voice_list re-judged T0 (suffix form carries the same read evidence as the prefix form).",
+ "tiers": [
+  {
+   "name": "audios_understand",
+   "tier": "unknown"
+  },
+  {
+   "name": "batch_text_to_audio",
+   "tier": "unknown"
+  },
+  {
+   "name": "batch_text_to_music",
+   "tier": "unknown"
+  },
+  {
+   "name": "call_tool",
+   "tier": "unknown"
+  },
+  {
+   "name": "convert",
+   "tier": "unknown"
+  },
+  {
+   "name": "date",
+   "tier": "unknown"
+  },
+  {
+   "name": "describe_images",
+   "tier": "unknown"
+  },
+  {
+   "name": "enhance_image",
+   "tier": "unknown"
+  },
+  {
+   "name": "eval",
+   "tier": "unknown"
+  },
+  {
+   "name": "generate_image",
+   "tier": "unknown"
+  },
+  {
+   "name": "get_asset_url",
+   "tier": "unknown"
+  },
+  {
+   "name": "get_voice_list",
+   "tier": "T0_read"
+  },
+  {
+   "name": "list_tools",
+   "tier": "T0_read"
+  },
+  {
+   "name": "listen_audio",
+   "tier": "unknown"
+  },
+  {
+   "name": "query_video_generation",
+   "tier": "unknown"
+  },
+  {
+   "name": "remove_image_background",
+   "tier": "unknown"
+  },
+  {
+   "name": "reverse_image_search",
+   "tier": "unknown"
+  },
+  {
+   "name": "search_images",
+   "tier": "unknown"
+  },
+  {
+   "name": "submit_video_generation",
+   "tier": "unknown"
+  },
+  {
+   "name": "synthesize_speech",
+   "tier": "unknown"
+  },
+  {
+   "name": "tool_schema",
+   "tier": "unknown"
+  },
+  {
+   "name": "videos_understand",
+   "tier": "unknown"
+  },
+  {
+   "name": "web_search",
+   "tier": "unknown"
+  }
+ ]
+}

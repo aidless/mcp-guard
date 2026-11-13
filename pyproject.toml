@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp-guard"
-version = "0.1.0"
+name = "mcp-guard-scan"
+version = "0.2.1"
 description = "Offline scanner for poisoned MCP tool descriptions, with version pinning and drift detection"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -24,6 +24,7 @@ Homepage = "https://github.com/aidless/mcp-guard"
 [project.scripts]
 mcp-guard = "run_eval:main"
 mcp-guard-scan = "guard.cli:main"
+mcp-guard-proxy = "guard.proxy:main"
 
 [tool.setuptools]
 packages = ["guard"]

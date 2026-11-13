@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "description": "Poison cases the rulepack knowingly cannot catch lexically. Each entry is a real miss that has been triaged and accepted as a method boundary; the self-evolution gate (agent-evolve --fail-on-proposal) treats these as known, not as new findings. Anything NOT listed here that is labeled poison and fires no rule is a new confirmed miss and reddens the gate.",
+  "boundaries": [
+    {
+      "name": "run_cmd",
+      "rules_expected": ["auth-url-exec"],
+      "why": "Description is 'Run a shell command.' -- no shell token, no os.system, no subprocess. A lexical rule cannot see intent, and widening it to bare 'shell command' would flag legitimate run_tests-style tools. Accepted as a method boundary.",
+      "capability_coverage": "closed-by-capability-axis -- scan_capability tiers it T3_destructive_or_exec via exec-or-launch ('run a command') + dangerous-param (cmd); verified 2026-11-09. The poison axis stays silent by design (nothing is being smuggled); the DANGER is visible to the second axis.",
+      "residual": "If a future case labels run_cmd-style tools as poison with gold auth-url-exec, the case-level recall stays capped at 21/22 = 0.9545 until a semantic (non-lexical) layer exists."
+    }
+  ]
+}

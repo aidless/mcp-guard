@@ -1,0 +1,42 @@
+name: corpus-scan
+
+# Scheduled sweep of any extracted third-party MCP tool corpus checked into
+# tasks/corpus.json (produced by `python tasks/extract_thirdparty.py ... -o
+# tasks/corpus.json`). The point of a schedule: a rulepack change re-scores the
+# stored corpus without anyone remembering to re-run the scanner, and a corpus
+# refresh lands with a diff in the next scheduled report.
+#
+# The corpus file is NOT stored in this repo by default (third-party tool
+# definitions are vendored per machine). When it is absent, this workflow
+# reports `skipped-no-corpus` and exits 0 -- a missing corpus is NOT_ASSESSED,
+# never a silent green.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+      - name: Scan stored corpus (or skip when absent)
+        run: |
+          if [ ! -f tasks/corpus.json ]; then
+            echo '{"status": "skipped-no-corpus", "reason": "tasks/corpus.json not present in this checkout"}' > corpus_report.json
+            cat corpus_report.json
+            exit 0
+          fi
+          python scripts/scan_corpus.py tasks/corpus.json --out corpus_report.json
+          cat corpus_report.json
+      - name: Upload report artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: corpus-report
+          path: corpus_report.json
