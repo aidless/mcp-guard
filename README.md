@@ -167,6 +167,43 @@ mcp-guard-scan --discover --discover-config ./team-mcp.json
 `metadata-url`**。离线/无 DNS 时"我没查成"和"你指向了元数据端点"是两件事，混在
 一起会把人引向错误的问题。代理那边相反——连不出去就不启动（fail-closed）。
 
+### 跨工具一致性：有些矛盾不在任何单条描述里（2026-11-14）
+
+规则包逐条读描述，这是它的边界：把一个 server 十二个工具里的八个都塞进同一句
+"you MUST first call X"，每一句单独看都不起眼，整体却是一个被强行装上的破坏性
+前门。`--cross-tool` 检查的是**工具之间**的关系，因此它需要该 server 完整的
+`tools/list`——把几个 server 摊平成一个列表会让所有跨 server 引用看起来都悬空，
+那是合并造成的伪影，不是发现。
+
+```bash
+mcp-guard-scan tools.json --cross-tool                  # 输出 findings
+mcp-guard-scan tools.json --cross-tool --fail-on-cross-tool  # 有 high 发现即退出码 1
+python3 scripts/cross_tool.py tools.json --fail-on-high
+```
+
+三类发现：
+
+| check | 级别 | 抓什么 |
+| --- | --- | --- |
+| `shared-precondition` | high | ≥3 个工具且 ≥30% 的工具都要求先调同一个工具（附带 count/ratio/工具清单） |
+| `requirement-cycle` | high | A 要求先调 B、B 要求先调 A：谁都不能先被调用，文档路径死锁 |
+| `dangling-tool-reference` | medium | 描述把模型指向本 server 不提供的工具 |
+
+**实测口径（分底物报，不混成一个数）**：
+
+- 良性真实 server（official 7 server 里 ≥3 工具的那几个，共 112 个工具）：
+  **0 发现**。
+- MCPTox 45 个 server：40 个有发现，其中 `shared-precondition` **7 个**，
+  `dangling-tool-reference` **39 个**。后者**不算检出**——MCPTox 把工具名随机化了
+  （`qubit`/`titanic`/`stone`…），描述里引用的 `read_file`/`write_file` 自然不在该
+  server 的工具集里。这是语料构造的副产物，把它当检出率等于自欺。
+- `requirement-cycle` 在 MCPTox 里 **0 个**：这是一条覆盖新攻击面的检查，不是从语料
+  里测出来的检出率，别当成已实证的能力。
+
+`shared-precondition` 的增量也不是"多检出几条毒"，而是**聚合**：五条独立告警折成
+一条结构性结论（"11 个工具里 5 个共享同一个前置 `git_reset`"）。
+`tests/test_cross_tool.py` 里那条 11 工具夹具就是照这个形态写的。
+
 ### 能力层：投毒扫描绿不等于工具安全
 
 投毒规则回答「描述有没有试图操纵模型」，不回答「一个诚实的工具能不能杀进程、

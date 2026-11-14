@@ -98,6 +98,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--format", choices=("jsonl", "sarif"), default="jsonl",
                     help="jsonl (default): one scan result per line; sarif: a single "
                          "SARIF 2.1.0 log for GitHub Code Scanning")
+    ap.add_argument("--cross-tool", action="store_true",
+                    help="同时检查工具之间的结构矛盾（共享前置、前置成环、引用不存在的工具）")
+    ap.add_argument("--fail-on-cross-tool", action="store_true",
+                    help="跨工具检查出现 high 发现时退出码 1")
     ap.add_argument("--annotation-report", default=None, type=pathlib.Path, metavar="PATH",
                     help="把注解门结果（violations/warnings/tier_mismatches）写成 JSON 工件；只出报告不改变退出码")
     args = ap.parse_args(argv)
@@ -176,6 +180,17 @@ def main(argv: list[str] | None = None) -> int:
                               "error": f"annotation-report unwritable: {exc}"}),
                   file=sys.stderr)
             return 2
+    cross_report = None
+    if args.cross_tool or args.fail_on_cross_tool:
+        from .cross_tool import analyze as analyze_cross_tool
+
+        cross_report = analyze_cross_tool(tools)
+        if cross_report["n_findings"]:
+            emit({"cross_tool": cross_report["findings"]})
+        print(json.dumps({k: cross_report[k] for k in
+                          ("n_tools", "n_findings", "checks")},
+                         ensure_ascii=False), file=sys.stderr)
+
     if as_sarif:
         from .sarif import to_sarif
 
@@ -188,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         (args.fail_on_hit and flagged)
         or (args.fail_on_capability and destructive)
         or (args.require_annotations and violations)
+        or (args.fail_on_cross_tool and cross_report
+            and any(f["severity"] == "high" for f in cross_report["findings"]))
     )
     return 1 if fail else 0
 

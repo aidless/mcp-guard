@@ -1,1123 +1,1346 @@
 {
-  "purpose": "Benign description corpus for false-positive measurement. Every entry is a real published tool description, never authored by us.",
+  "purpose": "Benign description corpus for false-positive measurement. Every entry is a real published tool description, never authored by us. Each entry carries its server so cross-tool checks have the scope they need: a tool set is per-server, and a reference is only dangling relative to the server it was published in.",
   "n_tools": 222,
   "sources": {
     "modelcontextprotocol/servers": 66,
     "firecrawl-mcp-server": 29,
     "arxiv-mcp-server": 19,
-    "smithery.ai": 108
+    "smithery.ai": 108,
+    "note": "server field added for cross-tool analysis; smithery entries are one server each (single-tool servers); names shared across servers (checkout/commit/...) resolved by inspection of each server's README"
   },
   "collected": "2026-11-09",
   "tools": [
     {
       "name": "echo",
       "description": "Echoes back the input string",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-annotated-message",
       "description": "Demonstrates how annotations can be used to provide metadata about content.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-header-params",
       "description": "A region name, e.g. eu-west. Mirrored into the Mcp-Param-Region HTTP header.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-resource-links",
       "description": "Returns up to ten resource links that reference different types of resources",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-resource-reference",
       "description": "Returns a resource reference that can be used by MCP clients",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-roots-list",
       "description": "Lists the current MCP roots provided by the client. Demonstrates the roots protocol capability even though this server doesn't access files. Deprecated: Roots is deprecated as of protocol version 2026-07-28. The server asks for the roots with a multi-round-trip request on every protocol version.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-structured-content",
       "description": "Returns structured content along with an output schema for client data validation",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-sum",
       "description": "Returns the sum of two numbers",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "get-tiny-image",
       "description": "Returns a tiny MCP logo image.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "gzip-file-as-resource",
       "description": "Compresses a single file using gzip compression. Depending upon the selected output type, returns either the compressed data as a gzipped resource or a resource link, allowing it to be downloaded in a subsequent request: during the current session for a 2025-era client, or for ten minutes at a minted URI on protocol version 2026-07-28.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "simulate-research-query",
       "description": "Simulates a deep research operation that gathers, analyzes, and synthesizes information. Runs as a task on the io.modelcontextprotocol/tasks extension (protocol version 2026-07-28): the call returns a task handle, and the client polls tasks/get as the task moves through four stages. If 'ambiguous' is true and the client supports elicitation, the task pauses with status input_required until the client answers its clarification request with tasks/update.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "toggle-simulated-logging",
       "description": "Toggles simulated, random-leveled logging on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes logging/setLevel; use trigger-log-messages with a per-request log level instead.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "toggle-subscriber-updates",
       "description": "Toggles simulated resource subscription updates on or off. Deprecated: 2025-era clients only, since protocol version 2026-07-28 removes resources/subscribe; use trigger-resource-update with a subscriptions/listen stream instead.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-elicitation-request-async",
       "description": "Runs as a task on the io.modelcontextprotocol/tasks extension (protocol version 2026-07-28) that needs the user's input: the task waits in status input_required, carrying an elicitation request, until the client answers it with tasks/update, then completes with a summary of the answer.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-elicitation-request",
       "description": "Trigger a Request from the Server for User Elicitation",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-list-changed",
       "description": "Sends a notifications/<list>/list_changed for the tool, prompt or resource list. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream that asked for that list; a 2025-era client receives it unsolicited.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-log-messages",
       "description": "Sends one log message at each logging level during the call. On protocol version 2026-07-28 only the messages at or above the level the request names in _meta (io.modelcontextprotocol/logLevel) are sent, and none if it names no level; a 2025-era client gets those at or above the level it set with logging/setLevel. Deprecated: logging is deprecated as of protocol version 2026-07-28.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-long-running-operation",
       "description": "Demonstrates a long running operation with progress updates.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-multi-step-elicitation",
       "description": "Asks the user for their name, then for a favorite color addressed to them by that name, carrying the first answer to the second round in requestState. Demonstrates multi-round-trip requests (input_required) and requestState on protocol version 2026-07-28; 2025-era clients get the same flow as elicitation requests.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-resource-update",
       "description": "Sends a notifications/resources/updated for a resource URI. On protocol version 2026-07-28 it is delivered on each subscriptions/listen stream whose resourceSubscriptions name the URI; a 2025-era client receives it once it has called resources/subscribe for the URI.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-sampling-request-async",
       "description": "Runs as a task on the io.modelcontextprotocol/tasks extension (protocol version 2026-07-28) that needs an LLM completion: the task waits in status input_required, carrying a sampling request, until the client answers it with tasks/update, then completes with the result. Deprecated: Sampling is deprecated as of protocol version 2026-07-28.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-sampling-request",
       "description": "Trigger a Request from the Server for LLM Sampling. Deprecated: Sampling is deprecated as of protocol version 2026-07-28. The server asks with a multi-round-trip request on every protocol version.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "trigger-url-elicitation",
       "description": "Trigger a URL elicitation so the client can direct the user to a browser flow. Supports two mechanisms: the request path (elicitation/create, default) which awaits the user's response, and the error path (UrlElicitationRequiredError, -32042) which signals the client to handle URL elicitation via the error response. Set errorPath=true to use the error path. On protocol version 2026-07-28 the server instead returns the URL elicitation in-band (input_required).",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "read_file",
       "description": "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "read_text_file",
       "description": "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "read_media_file",
       "description": "Read a file and return it as a base64-encoded content block with its MIME type. Image and audio files are returned as image/audio content; any other file type is returned as an embedded resource. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "read_multiple_files",
       "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "write_file",
       "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "append_file",
       "description": "Append text to the end of a file, creating the file if it does not exist. The existing content is never changed or replaced. The text is appended exactly as given, with no newline added before or after it, so end it with a newline if the next append should start on a new line. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "edit_file",
       "description": "Make line-based edits to a text file. Edits apply in order, each to the result of the ones before it, and each replaces the first match of its oldText with newText. oldText must match the file's text exactly, except that line endings (LF or CRLF) never matter and, when there is no exact match, a run of whole lines matches if each line is equal once leading and trailing whitespace is ignored (newText then takes the file's indentation). Whitespace inside a line must match. If any edit has no match, nothing is written and the error shows the closest lines of the file, numbered, to copy oldText from. Returns a git-style diff showing the changes made. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "create_directory",
       "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "list_directory",
       "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "list_directory_with_sizes",
       "description": "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "directory_tree",
       "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty), except at the last level when 'depth' limits the tree: those directories are not read and have no children array. The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "move_file",
       "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "copy_file",
       "description": "Copy a file to a new location, without reading its content into the conversation. Copies one regular file, keeping its permissions and modification time; directories are not copied. If the destination exists, the operation will fail: it never overwrites. Both source and destination must be within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "search_files",
       "description": "Find files and directories by NAME, not by content: this tool never reads or searches inside files. It walks the tree under 'path' and matches a glob pattern against each entry's path relative to 'path' (case-sensitive). Use '*.ext' to match entries directly under 'path', and '**/*.ext' or '**/name' to match at any depth. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "get_file_info",
       "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, type and hard-link count. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "list_allowed_directories",
       "description": "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "status",
       "description": "Shows the working tree status",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "fetch"
     },
     {
       "name": "diff_unstaged",
       "description": "Shows changes in the working directory that are not yet staged",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "diff_staged",
       "description": "Shows changes that are staged for commit",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "diff",
       "description": "Shows differences between branches or commits, or across a revision range (main..feature, main...feature)",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "filesystem"
     },
     {
       "name": "commit",
       "description": "Records changes to the repository",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "add",
       "description": "Adds file contents to the staging area",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "reset",
       "description": "Unstages all staged changes",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "log",
       "description": "Shows the commit logs",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "everything"
     },
     {
       "name": "create_branch",
       "description": "Creates a new branch from an optional base branch or commit",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "checkout",
       "description": "Switches branches",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "merge",
       "description": "Merges a branch into the current branch. Fast-forward only unless fast_forward_only is false; refuses a dirty working tree, and aborts a merge that conflicts, leaving the repository unchanged",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "show",
       "description": "Shows the contents of a commit, or of a file or directory given as <revision>:<path>",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "branch",
       "description": "List Git branches",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "remote",
       "description": "Lists the repository's remotes with their fetch and push URLs, like `git remote -v`. Credentials embedded in a URL are shown as <redacted>",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "git"
     },
     {
       "name": "create_entities",
       "description": "Create multiple new entities in the knowledge graph. An entity whose name already exists, or repeats an earlier entity in the same call, is skipped and its observations are not added; the result lists the skipped names in `skipped`. Use add_observations to add observations to an existing entity.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "create_relations",
       "description": "Create multiple new relations between entities in the knowledge graph. Relations should be in active voice",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "add_observations",
       "description": "Add new observations to existing entities in the knowledge graph",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "delete_entities",
       "description": "Delete multiple entities and their associated relations from the knowledge graph",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "delete_observations",
       "description": "Delete specific observations from entities in the knowledge graph",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "delete_relations",
       "description": "Delete multiple relations from the knowledge graph",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "read_graph",
       "description": "Read the entire knowledge graph: every entity with its observations, and every relation. The result grows with the graph, so use this only when you need everything; prefer search_nodes to find entities by keyword and open_nodes to read entities whose names you know.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "search_nodes",
       "description": "Search the knowledge graph for entities whose name, type or observations contain the query (case-insensitive). Use this when you have a keyword, a topic or part of a name but not the exact entity names. Prefer open_nodes when you already know the exact names, and use read_graph only when you need the whole graph. Returns the matching entities and every relation that touches one of them.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "open_nodes",
       "description": "Retrieve specific entities by their exact names, with every relation that touches one of them. Use this when you already know the names (from the conversation, or from an earlier search_nodes or read_graph result); it is the cheapest way to read entities you can name. Prefer search_nodes when you only have a keyword or part of a name. Names that do not exist are skipped.",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "memory"
     },
     {
       "name": "sequentialthinking",
       "description": "A detailed tool for dynamic and reflective problem-solving through thoughts. Each thought can build on, question, or revise previous insights as understanding deepens. When to use this tool: - Breaking down complex problems into steps - Planning and design with room for revision - Analysis that might need course correction - Problems where the full scope might not be clear initially - Tasks that need to maintain context over multiple steps - Situations where irrelevant information needs to be filtered out You should: 1. Estimate totalThoughts up front and adjust it up or down as you go; thoughtNumber may exceed it 2. Question or revise earlier thoughts (isRevision with revisesThought), or branch (branchFromThought with branchId) 3. Express uncertainty, and ignore information irrelevant to the current step 4. Generate a solution hypothesis, verify it against the earlier steps, and repeat until satisfied 5. Set nextThoughtNeeded to false only when truly done and a satisfactory answer is reached",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "sequentialthinking"
     },
     {
       "name": "get_current_time",
       "description": "Get current time in a specific timezone",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "time"
     },
     {
       "name": "convert_time",
       "description": "Convert time between timezones",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "time"
     },
     {
       "name": "get_time_ago",
       "description": "Get the time a given number of days, hours, minutes and seconds ago in a specific timezone",
-      "source": "modelcontextprotocol/servers"
+      "source": "modelcontextprotocol/servers",
+      "server": "time"
     },
     {
       "name": "firecrawl_developer_search",
       "description": "Search an index of public repositories, GitHub issues, merged pull requests, repository READMEs, and code documentation for programming questions that need external documentation or upstream evidence. Returns ranked results with an ID, source type, URL, title, and the matched passages in markdown.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_create",
       "description": "Create a recurring scrape, crawl, or search monitor that compares each check with its retained predecessor. The simple form accepts \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_list",
       "description": "List monitors for the authenticated account with optional pagination controls. Returns one page of monitor records and pagination metadata.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_get",
       "description": "Retrieve one monitor by ID, including its configuration and current state. This does not run or modify the monitor.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_update",
       "description": "Patch an existing monitor by ID; changes affect future scheduled checks. Pause or resume it with \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_delete",
       "description": "Permanently delete a monitor by ID and stop its future schedule. This operation cannot be undone and returns deletion status.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_run",
       "description": "Queue an immediate check for a monitor outside its normal schedule. This starts network work for the monitor's configured targets and returns the queued check.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_checks",
       "description": "List historical checks for a monitor, optionally filtered by status and bounded by a result limit. Returns one page of check summaries and pagination metadata.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_monitor_check",
       "description": "Retrieve one monitor check and its page-level results, optionally filtered by page status. Pages report \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_research_search_papers",
       "description": "Search paper metadata and abstracts with a natural-language query across the indexed corpus, which spans biomedical, life-science, and clinical literature (PubMed, bioRxiv, medRxiv) alongside arXiv and other scientific sources. Optional author, category, date, and sort options constrain or reorder results. Several distinct framings of the same question surface different papers than a single query does. Returns ranked papers with canonical IDs, titles, authors, and abstracts.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_research_inspect_paper",
       "description": "Retrieve canonical metadata for one paper ID, such as an arXiv, PMC, PMID, or DOI identifier. Returns the title, abstract, authors, categories, source IDs, and dates as markdown.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_research_related_papers",
       "description": "Find citation-graph candidates from one to ten \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_research_read_paper",
       "description": "Retrieve in-body passages from one paper that are relevant to a specific question. Full text is available only for indexed papers; \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_research_search_github",
       "description": "Deprecated compatibility entry point. Use firecrawl_developer_search for GitHub issues, pull requests, and READMEs, plus code documentation, returned as matched passages.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_scrape",
       "description": "Scrape one URL and return its content: markdown by default, or HTML, links, screenshots, branding data, a targeted answer, or JSON matching a supplied schema. Use it when the request identifies a page and needs its content or defined fields: the user gives a URL or names a page or PDF and wants it read or summarized, or wants prices, specs, contact details or a table from it. Use \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_map",
       "description": "Enumerate URLs indexed under one website through Firecrawl without fetching each page's content. Use this when the request asks for a site's URL inventory, when several relevant pages must be located, or when the desired page URL is unknown. An optional \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_search",
       "description": "Use this when you need current or specific information from the web: recent events, latest releases and versions, prices, people and companies, statistics, or any fact that may have changed since your training data or that you are not sure of. Returns ranked results with query-relevant highlights; each web result is a title, URL, and description. Operators include quoted phrases, \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_find_tools",
       "description": "Browse Alexandria data providers and workflows or read a selected contract. Alexandria covers",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_search_feedback",
       "description": "Records schema-validated quality feedback for a prior \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_feedback",
       "description": "Submit concise quality feedback for a completed search, scrape, parse, or map job. Provide the endpoint, job ID, rating, and relevant issue codes or small contextual fields; omit large page contents and raw outputs. For an Alexandria session, set endpoint to \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_crawl",
       "description": "Start a multi-page crawl at a website URL, poll it to a terminal state, and return the final status and collected data. Scope can be bounded with include/exclude paths, depth, page limit, subdomain/external-link controls, sitemap handling, delay, and scrape options. Crawl results can be large; use conservative limits when full-site coverage is unnecessary. Webhooks and interactive scrape actions are unavailable in safe mode. Returns the crawl ID, status, and page data.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_check_crawl_status",
       "description": "Retrieve the current status, progress, and available results for an existing crawl ID. This only reads Firecrawl job state and does not start or modify the crawl.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_extract",
       "description": "Deprecated compatibility entry point. Use firecrawl_scrape once per known URL with formats: [\"json\"] and jsonOptions containing the prompt and schema. Use firecrawl_agent for multi-source research when the URLs are not known or the data spans several sites.",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_agent",
       "description": "Run web research that returns structured data when the URLs are not known or the answer spans several sites. Describe the fields you need in \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_agent_status",
       "description": "Retrieve progress or final results for a \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_interact",
       "description": "Open or reuse a live browser session to navigate a page, click controls, fill and submit forms, or run browser code. Provide either \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_interact_stop",
       "description": "Stop the live interact session associated with a \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_parse",
       "description": "Parse one supported document into markdown, HTML, links, summary, targeted answers, or JSON matching a schema. Supported inputs include common HTML, PDF, Word, RTF, OpenDocument, and spreadsheet files; PDF parsing can be bounded with \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "firecrawl_credit_usage",
       "description": "Get the authenticated Firecrawl team's current credit balance or its credit usage over the last 90 days. Use the current view to answer how many credits remain or to check billing-period boundaries. Use the historical view to answer what credits were spent on and when. The current view returns \\",
-      "source": "firecrawl-mcp-server"
+      "source": "firecrawl-mcp-server",
+      "server": "firecrawl-mcp-server"
     },
     {
       "name": "watch_topic",
       "description": "Save or update a persistent research topic watch. When checked via check_alerts, returns only papers published since the last check — acting as a standing alert for new work on a topic. New watches seed last_checked to creation time so the first check does not dump historical matches. The topic string uses the same query syntax as search_papers (quoted phrases, field specifiers, boolean operators). Examples: '\"diffusion models\" AND ti:\"video generation\"', 'au:\"LeCun\" AND cs.LG'. Calling watch_topic with the same topic string updates the existing watch rather than creating a duplicate. On update, omit categories to preserve existing filters; pass categories: [] to clear them. Pair with check_alerts to poll for new papers.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "check_alerts",
       "description": "Check all saved topic watches for newly published papers since the last check. Omitting the topic parameter runs ALL saved watches and returns new papers for each. Passing a topic string checks only that specific watch. Advances each watch's drain cursor after running: when a page is truncated by max_results, has_more=true and check_start advances so later calls return the next papers in the same window (Atom date bounds alone are day-granular and would otherwise re-hit the boundary); last_checked tracks the newest returned paper. When the page is not full, last_checked becomes now and the drain cursor resets. Use watch_topic to register topics before calling this. Returns a clear not-found error if a topic is provided but no matching watch exists. Returns a summary with new paper counts, has_more, and full paper metadata per topic.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "list_watches",
       "description": "List all saved topic watches without checking for new papers. Returns each watch's topic, categories, last_checked timestamp, and other stored fields. Does not update last_checked — use this to inspect what is saved. Use unwatch_topic to remove a watch, or check_alerts to poll for new papers.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "unwatch_topic",
       "description": "Delete a saved topic watch by exact topic string. The topic must match the stored watch_topic value exactly. Returns a clear not-found error if no matching watch exists. Use list_watches to inspect saved watches before deleting.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "citation_graph",
       "description": "Return papers citing an arXiv paper and papers that it references using Semantic Scholar's citation graph. Results are bounded (default 50) to stay within the unauthenticated quota. Graphs are cached on disk to reduce repeated API calls. Under load, a free Semantic Scholar API key (https://www.semanticscholar.org/product/api#api-key) makes this reliable; without a key, persistent rate limits return status=rate_limited with an unmistakable warning instead of failing hard.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "download_paper",
       "description": "Download a paper from arXiv and return its text content. Tries the HTML version first for clean extraction; falls back to PDF conversion if HTML is unavailable. Stores the paper locally. Returned text is bounded to roughly 12,000 characters by default so one call cannot return an unbounded paper body. When is_truncated is true, call again with start=next_start (see next_retrieval) to continue, or pass return_full_text=true for the entire remaining paper. Set force=true to re-fetch and overwrite a cached paper (required to replace a newer stored arXiv version with an older one).",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "export_citations",
       "description": "Export BibTeX citations for one or more arXiv papers using authoritative arXiv metadata (title, authors, year, primary category), never model-generated fields. Version suffixes (e.g. '2401.12345v2') are preserved and citation keys are deterministic. Returns the rendered BibTeX plus per-paper status/error. BibTeX only; RIS/CSL-JSON are not yet supported.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "get_abstract",
       "description": "Fetch abstract and metadata by arXiv ID without downloading the paper. Use before download_paper to assess relevance. Returns title, authors, abstract, categories, published date, and PDF URL. After compact search, use for one full abstract; skip if search used abstract_mode=full.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "get_paper_latex",
       "description": "Download, safely process, cache, and return bounded original LaTeX source. Use section tools for targeted reading.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "list_paper_latex_sections",
       "description": "Return a compact outline of headings from original LaTeX source.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "get_paper_latex_section",
       "description": "Return one bounded LaTeX section by outline ID or title (whitespace/case normalized; macros expanded).",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "list_papers",
       "description": "List all papers that have been downloaded and stored locally via download_paper. Returns id, title, authors, published, and arxiv_version/versioned_id from local metadata — no live re-fetch. Set compact=true to return arXiv IDs only. Returns an empty list if no papers have been downloaded yet. Workflow: search_papers -> download_paper -> list_papers -> read_paper.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "get_paper_outline",
       "description": "Return a paginated heading outline for a downloaded paper (markdown). Stable hierarchical section IDs; use read_paper_section to fetch one.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "read_paper_section",
       "description": "Return one bounded markdown section by outline ID (or unique title). Does not include sibling or parent sections.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "search_paper_text",
       "description": "Search a downloaded paper for bounded matching passages with section/source offsets. Suppresses high-overlap near-duplicates and prefers section-diverse hits. Lightweight substring search; no Torch.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "read_paper",
       "description": "Read the text content of a paper that was previously downloaded via download_paper. Returns the paper in markdown format, bounded to roughly 12,000 characters by default so one call cannot return an unbounded paper body. When is_truncated is true, call again with start=next_start (see next_retrieval) to continue, or pass return_full_text=true for the entire remaining paper. Will fail with a clear error if the paper has not been downloaded yet — call download_paper first. Workflow: search_papers -> download_paper -> read_paper.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "search_papers",
       "description": "Search arXiv by query with optional categories, date range, sort, and pagination. Query: prefer quoted phrases; ti:/au:/abs:/cat:; AND/OR/ANDNOT. Unprefixed terms match title+abstract (not authors). Use categories (cs.AI, cs.LG, cs.CL, cs.CV, cs.MA, cs.RO, stat.ML, quant-ph). Catalog/examples: README 'search_papers query guide'. Dates YYYY-MM-DD (date_from/date_to). sort_by relevance|date. max_results default 5 (cap 50). abstract_mode none|snippet|full (default snippet). start default 0; response: total_results, returned, has_more, next_start, abstract_mode. Pass next_start with same abstract_mode. Use get_abstract after compact search — not after abstract_mode=full. arXiv ~3s between requests (server-side). Transient 429/503 are retried with backoff; persistent rate limits return status=rate_limited.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "semantic_search",
       "description": "Semantic similarity search over papers you have already downloaded locally via download_paper. Supports free-text queries (e.g. 'attention mechanisms for long sequences') or finding papers similar to a given paper_id. IMPORTANT: only searches your local downloaded collection — will return empty results if no papers have been downloaded yet. Use search_papers to find papers on arXiv, then download_paper to add them to the local index before using this tool. Requires pro dependencies: uvx --from 'arxiv-mcp-server[pro]' arxiv-mcp-server (or uv tool install 'arxiv-mcp-server[pro]').",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "reindex",
       "description": "Rebuild the local semantic index for downloaded papers.",
-      "source": "arxiv-mcp-server"
+      "source": "arxiv-mcp-server",
+      "server": "arxiv-mcp-server"
     },
     {
       "name": "brave",
       "description": "Search the web with Brave's independent index — web, news, images, and videos. Bring your own subscription token from the [Brave Search API dashboard](https://api-dashboard.search.brave.com).",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:brave"
     },
     {
       "name": "gmail",
       "description": "Read, search, and send Gmail messages. Manage drafts, threads, and labels; reply, forward, archive, trash, report spam, and triage your inbox.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:gmail"
     },
     {
       "name": "onesignal/onesignal",
       "description": "OneSignal is a customer engagement platform that lets you send targeted push notifications, emails, SMS, and in-app messages, manage audiences, and track campaign performance.\n\nWith the OneSignal MCP, manage your messaging directly from your AI assistant. Send push notifications, emails, and SMS by simply describing your audience and message. Check campaign delivery stats, build audience segments, manage templates, and handle user subscriptions all through conversation.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:onesignal/onesignal"
     },
     {
       "name": "theagenttimes/news",
       "description": "The intelligence layer agents use before they act, sourced answers on the agent economy.\n\nQuery verified AI news with citations, confidence scores, and Ethics Engine ratings. Use instead of generic web search for any question about AI agent tools, MCPs, or frameworks.\n\nEvery result carries citations, confidence scores, and Ethics Engine ratings. Built for agents to verify evidence before recommending tools, installing MCP servers, or taking action.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:theagenttimes/news"
     },
     {
       "name": "subwayinfo",
       "description": "Real-time NYC subway information. Check train status, view service alerts, and get station-level arrival times.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:subwayinfo"
     },
     {
       "name": "exa",
       "description": "Fast, intelligent web search and web crawling. Get fresh information about libraries, APIs, and SDKs.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:exa"
     },
     {
       "name": "googlesheets",
       "description": "Search and inspect Google Sheets, create and edit spreadsheets, scan for data issues, review edit history, and manage comments.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:googlesheets"
     },
     {
       "name": "github",
       "description": "Connect your AI agents to GitHub — manage repos, issues, PRs, workflows, and more",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:github"
     },
     {
       "name": "pubmed",
       "description": "Search biomedical literature across 36 million citations. Find papers, abstracts, and related articles from MEDLINE and life science journals.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pubmed"
     },
     {
       "name": "zachary-royals/devmatch",
       "description": "DevMatch is an MCP server for hiring engineers based on what they've actually built. Connect from Cursor, Claude Desktop, or any MCP-compatible AI assistant and search 35M+ developers ranked by verified open-source contributions — not LinkedIn keywords or self-reported skills.\n\n **Three tools:**\n\n**`find_candidates`** — paste a job description, get a ranked shortlist with bio, top repos, contribution evidence, and contact info. Pro tier adds verified email enrichment on the top 5 results.\n**`get_profile`** — deep-dive any GitHub handle. Bio, recent activity, top projects, and outreach channels in one call.\n**`find_similar_projects`** — landscape mapping from a seed repo with top contributors surfaced, so you can pivot from a project to its maintainers in one step.\n\nBuilt for mission-driven teams that want engineers who care about the work, not just check the keyword box. OAuth sign-in (no API keys to juggle). Free tier with 50 monthly credits, $129/mo Pro for higher quotas plus verified email enrichment.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:zachary-royals/devmatch"
     },
     {
       "name": "OjasKord/url-safety-validator-mcp",
       "description": "URL safety checker for AI agents. Detects phishing and malware before your agent visits any link.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:OjasKord/url-safety-validator-mcp"
     },
     {
       "name": "googlecalendar",
       "description": "Create, update, and delete Google Calendar events, list calendars and events, respond to invitations, and find times when everyone is free.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:googlecalendar"
     },
     {
       "name": "googledrive",
       "description": "Search Google Drive, upload and download files, create folders, move and rename items, and manage sharing and file permissions.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:googledrive"
     },
     {
       "name": "aiwyn",
       "description": "Automate tax workflow tasks and manage client engagements. Track deadlines, organize documents, and handle billing for accounting firms.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:aiwyn"
     },
     {
       "name": "slack",
       "description": "Read Slack conversations, threads, and user directories, send messages, and invite users to channels.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:slack"
     },
     {
       "name": "bigquery",
       "description": "Run SQL queries on BigQuery datasets, list tables, and inspect schemas. Manage jobs, export results, and explore data warehouse resources.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:bigquery"
     },
     {
       "name": "favcrm/favcrm",
       "description": "**Agentic CRM for service businesses** — 136 typed tools across customers,\nbookings, loyalty, invoices, and WhatsApp/SMS. Hosted at `api.favcrm.io/mcp`.\n\n### What it does\n\n- **Customers & loyalty** — segments, memberships, rewards, points\n- **Bookings** — create, confirm, cancel, no-show; capacity-aware schedules\n- **Commerce** — invoices, payments, products, orders, inventory\n- **Communications** — WhatsApp, SMS, email with templates\n- **CRM core** — contacts, tasks, tickets, deals, campaigns\n\n### Auth\n\nAPI key (`fav_mcp_...`). Sign up free at [favcrm.io](https://favcrm.io) → Settings → API Keys.\n\n**Free tier:** 100 customers + 200 bookings/month. No credit card.\n\n### Quickstart\n\nInstall snippets, examples, and smoke tests:\n[github.com/favcrm/mcp](https://github.com/favcrm/mcp)",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:favcrm/favcrm"
     },
     {
       "name": "adamamer20/paper-search-mcp-openai",
       "description": "Search and download academic papers from arXiv, PubMed, bioRxiv, medRxiv, Google Scholar, Semantic Scholar, and IACR. Fetch PDFs and extract full text to accelerate literature reviews. Get consistent metadata for easier filtering, citation, and analysis.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:adamamer20/paper-search-mcp-openai"
     },
     {
       "name": "jordan-s648/PolymarketScan",
       "description": "Real-time Polymarket analytics for AI agents. Query live prediction market data including whale trades, market odds, trader profiles, and leaderboards.\n\n**Available tools:**\n- `get_whale_trades` — large trades above a size threshold\n- `get_market_odds` — current prices and implied probability for any market\n- `get_trader_profile` — PnL, win rate, ROI for any wallet\n- `get_leaderboard` — top traders ranked by PnL, ROI, or win rate\n- `get_market_summary` — AI-citable summary paragraph for any market\n- `search_markets` — full-text search across all active markets\n- `get_market_movers` — biggest price movements in the last 24 hours\n- `get_site_stats` — aggregate platform statistics\n\nNo API key required. Data provided by PolymarketScan (polymarketscan.org).",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:jordan-s648/PolymarketScan"
     },
     {
       "name": "bouch/uk-due-diligence",
       "description": "Tools across five UK public registers. All official APIs.\n\nGive an agent a company name and it pulls corporate status, filing compliance, director networks, beneficial ownership chains, disqualification checks, insolvency notices, VAT validation, and property transactions.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:bouch/uk-due-diligence"
     },
     {
       "name": "oobe-protocol/sap-mcp",
       "description": "Use the SAP MCP Wizard or install the library from the npm registry to automatically create and configure a Solana/SAP wallet via https://mcp.sap.oobeprotocol.ai",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:oobe-protocol/sap-mcp"
     },
     {
       "name": "emblemai/emblem-mcp",
       "description": "# EmblemAI MCP\n\nEmblemAI is a hosted Model Context Protocol server that gives AI agents a full-featured crypto wallet plus **200+ tools** for trading, DeFi, NFTs, and on-chain analytics across **7 blockchains**:\n\n- **Bitcoin** — native BTC, Ordinals inscriptions, Runes, BRC-20, Stamps / SRC-20, Alkanes, rare sats\n- **Solana** — SOL + SPL tokens, Jupiter-routed swaps, Solana memecoin discovery, RugCheck\n- **Ethereum** — native ETH, ERC-20, ERC-721 / ERC-1155 NFTs, ETH swaps\n- **Base** — native ETH on L2, ERC-20, NFTs, Clanker discovery\n- **BSC** — native BNB, BEP-20, FourMeme bonding-curve discovery and trading\n- **Polygon** — native MATIC, ERC-20, swaps\n- **Hedera** — HBAR, HTS tokens, MemeJob discovery and trading\n\nPlus prediction markets via **Polymarket**, market research, conditional orders (limit / stop-loss / take-profit) on supported chains, and on-chain analytics.\n\n## Quick start\n\nThe Smithery deployment connects directly to the hosted EmblemAI MCP at `https://emblemvault.ai/api/mcp`. You only need an API key:\n\n1. Sign in at [emblemvault.ai](https://emblemvault.ai).\n2. Open **Settings → Vault Access Key** and copy your key.\n3. Paste it as the `apiKey` parameter in the Smithery connection form.\n\nBrowsing tools (`tools/list`) works anonymously, so you can inspect the catalog before authenticating.\n\n## Auth modes\n\n| Mode | When to use | Scope |\n| --- | --- | --- |\n| **API key** (`x-api-key`) | Unattended agents, cron jobs, server-to-server, any workflow that mints tokens or sends transactions | Full read + write, no expiry until revoked |\n| **OAuth 2.0 + PKCE** (RFC 7591 Dynamic Client Registration) | Interactive sessions where a human can click a browser popup | Read-only `vault:read`, short-lived JWT |\n| **x402 micropayments** | Pay-per-call across the public catalog without an account | Per-tool-call USDC settlement |\n\nThe Smithery deployment defaults to the API-key path, configured via the `apiKey` parameter (sent to the upstream as the `x-api-key` header).\n\n## Enabling transactional tools\n\nState-changing tools (sends, swaps, mints, conditional-trade creates) are hidden by default. Opt in by setting the `enableTransactions` parameter to `enabled` — Smithery's gateway forwards it as the `x-mcp-transactions: enabled` header. Transactional tools then surface in `tools/list` with a `-transaction` suffix, which makes them easy to allow- or block-list with wildcard rules in the host client.\n\nNote: transactional tools also require API-key auth — OAuth bearers do not pass the `vault:write` gate.\n\n## Specialized listings (filter)\n\nThe full 200-tool surface is wide. For Bitcoin-only, Solana-only, or any other curated slice, use the stdio bridge `@emblemvault/mcp` (npm) and set:\n\n```\nEMBLEMAI_TOOLS_FILTER=\"bitcoin*,*Rune*,*Inscription*\"\n```\n\nThe bridge applies the glob filter to both `tools/list` and `tools/call`, exposing only the matching subset to the host LLM. The hosted Smithery deployment always exposes the full catalog; the filter is a stdio-side feature.\n\n## Categories\n\nTrading · DeFi · NFTs · Wallet · Bitcoin Ordinals · Polymarket prediction markets · Cross-chain · Market analytics · Research / web search.\n\n## Links\n\n- Hosted MCP: `https://emblemvault.ai/api/mcp`\n- Stdio bridge: `@emblemvault/mcp` ([github](https://github.com/EmblemCompany/Agent-skills/tree/main/mcp-bridge))\n- Repo: [EmblemCompany/Agent-skills](https://github.com/EmblemCompany/Agent-skills)\n- Web app: [emblemvault.ai](https://emblemvault.ai)\n- Glama listing: [glama.ai/mcp/servers/EmblemCompany/Agent-skills](https://glama.ai/mcp/servers/EmblemCompany/Agent-skills)\n- Docs: [emblemvault.ai/docs/mcp](https://emblemvault.ai/docs/mcp)\n\n## License\n\nMIT (stdio bridge + documentation). Hosted MCP is managed SaaS.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:emblemai/emblem-mcp"
     },
     {
       "name": "naver/search",
       "description": "Search Naver across news, blogs, books, encyclopedia, cafe posts, Knowledge iN, local places, images, shopping, and professional documents. Returns Korean-language results and Korea-local content that global search engines often miss.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:naver/search"
     },
     {
       "name": "friso/compliancecheckup",
       "description": "Free automated privacy grades (A+ to F) for 900+ SaaS tools, plus GDPR, HIPAA, PCI DSS, SOC 2, CCPA, and ADA compliance checklists with source citations.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:friso/compliancecheckup"
     },
     {
       "name": "pinkpixel-dev/web-scout-mcp",
       "description": "Search the web and extract clean, readable text from webpages. Process multiple URLs at once to speed up research with reliable throttling and error handling. Quickly compile sources and summaries for briefs, reports, or competitive analysis.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pinkpixel-dev/web-scout-mcp"
     },
     {
       "name": "segellfosc-dev-ayfx/menjometre",
       "description": "Menjometre is an independent observatory of Catalan public spending. This MCP server gives any LLM client read-only access to the full dataset and the statistical scoring layer built on top of it.  \n\n## Coverage                                                                          \n                                                             \n  - **~19.5 M** grant records from the Registre d'Ajuts i Subvencions de Catalunya     \n  (RAISC), 2016–present                                                                \n  - **~1.7 M** public procurement contracts from Dades Obertes de Catalunya          \n  - **~496 K** beneficiary entities with normalised identities                         \n  - A **public-figure graph** linking Parlament deputies, Generalitat officials, and \n  the boards of publicly-funded entities                                             \n  - The **Menjometre score** — a statistical indicator flagging concentration and      \n  recurrence patterns in public spending                     \n                                                                                       \n  ## What the 48 tools cover                                                           \n                                                                                       \n  | Domain | What you can ask |                                                        \n  |---|---|                                                                            \n  | `entities` | Search, profile, network, activity timeline for any funded            \n  organisation |                                                                     \n  | `grants` | RAISC lookups, concentration analysis, purpose trees, year-over-year    \n  trends |                                                                           \n  | `contractes` | Procurement lookups, sole-source detection, fragmentation patterns |\n  | `organs` | Granting-body rankings and profiles |                                 \n  | `xarxa` | Public-figure graph, shortest path between two people, cluster           \n  investigation |                                                                      \n  | `pressupostos` | Generalitat budget surface |                                    \n  | `meta` | Methodology, scoring explanation, upstream attribution manifest |         \n                                                                                     \n  ## Example prompts                                                                   \n                                                                                       \n  - *\"Which ten Catalan entities received the most RAISC funds in 2024?\"*              \n  - *\"Show me the concentration profile of the entity with CIF A08000143.\"*            \n  - *\"Which grant-giving bodies award the largest share of their budget to a single    \n  beneficiary?\"*                                                                       \n  - *\"What percentage of Ajuntament de Girona's contracts are sole-source?\"*           \n  - *\"Explain how the Menjometre score is computed.\"*                                  \n                                                                                       \n  ## Response envelope                                                               \n                                                                                       \n  Every tool response ships with four things:                                          \n                                                                                       \n  1. **Attribution** — a `sources` array citing the upstream dataset, licence          \n  (CC-BY-4.0 / Llei 37/2007), and publisher                                            \n  2. **Scope predicate** — personal-data filters enforced at the database query, not   \n  client-side                                                                          \n  3. **Framing** — scored responses embed a `score_meta` block with a                  \n  `not_an_accusation` disclaimer and a link to the methodology page                  \n  4. **Neutral statistical language** — the server returns \"top decile\", \"around the   \n  median\", never accusatory framing                                                  \n                                                                                       \n  Safe for journalism, academic research, and civic-tech tooling.                      \n                                                                                     \n  ## Install via npm                                                                   \n                                                                                     \n  ```json                                                                              \n  {                                                                                  \n    \"mcpServers\": {                                                                    \n      \"menjometre\": {                                                                \n        \"command\": \"npx\",                                                              \n        \"args\": [\"-y\", \"menjometre-mcp\"]                                             \n      }                                                                                \n    }                                        \n  }                                                                                    \n                                                                                     \n  Also reachable directly over Streamable HTTP at https://www.menjometre.cat/mcp.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:segellfosc-dev-ayfx/menjometre"
     },
     {
       "name": "entia/entity-verification",
       "description": "Verified business-identity intelligence for AI agents & MCP clients — company verification, VAT, BORME, GLEIF, ownership and risk signals across 10 countries. 11.3M verified entities and 40.3M BORME acts. Remote MCP server, free tier (100 req/month). Sources: BORME, VIES, GLEIF, Wikidata.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:entia/entity-verification"
     },
     {
       "name": "TitanSneaker/paper-search-mcp-openai-v2",
       "description": "Find and download academic papers from leading sources like arXiv, PubMed, bioRxiv, medRxiv, Google Scholar, Semantic Scholar, CrossRef, and IACR. Get standardized results and fetch full-text PDFs when available. Accelerate literature reviews with deep search and effortless retrieval.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:TitanSneaker/paper-search-mcp-openai-v2"
     },
     {
       "name": "deficlow/zipp",
       "description": "Multi-language crypto news for AI assistants — editorial summaries, sentiment labels (BULLISH/NEUTRAL/BEARISH), importance scores 0–100, and every story credited to its original publisher. 8 languages, 6 tools, public read-only access at https://zippfeed.com/mcp/.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:deficlow/zipp"
     },
     {
       "name": "smithery-ai/national-weather-service",
       "description": "Provide real-time and forecast weather information for locations in the United States using natural language queries. Access current conditions, multi-day and hourly forecasts, weather alerts, and nearby weather stations without requiring an API key. Enable users to get official, government-sourced weather data easily through intuitive tools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:smithery-ai/national-weather-service"
     },
     {
       "name": "hamid-vakilzadeh/mcpsemanticscholar",
       "description": "The server provides immediate access to millions of academic papers through Semantic Scholar and arXiv, enabling AI-powered research with comprehensive search, citation analysis, and full-text PDF extraction from multiple sources (arXiv and Wiley open-access).\n\n - No API key is required.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:hamid-vakilzadeh/mcpsemanticscholar"
     },
     {
       "name": "NutriBalance/nutribalance-mcp",
       "description": "Free nutrition tools for AI assistants — calculate TDEE &\n  personalised macros, look up food nutrition data, generate meal   \n  plans (standard, vegetarian, vegan, keto, high-protein), fix      \n  nutrient deficiencies with food & supplement guidance, and score a\n   day's eating from 0–100.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:NutriBalance/nutribalance-mcp"
     },
     {
       "name": "ia-qa/api",
       "description": "IA-QA as an MCP Server\nUse IA-QA's developer tools to test your llm agents RAG ai tools, directly from Cursor, Claude Desktop, Windsurf, or any AI agent without leaving your IDE. \nMany classical testing tools too ! Enjoy ! \nNo API key. No signup. Free.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ia-qa/api"
     },
     {
       "name": "pkobielak/social-superpowers",
       "description": "Live X/Twitter and Reddit research. 10 read-only MCP tools, Google/GitHub sign-in. Free tier.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pkobielak/social-superpowers"
     },
     {
       "name": "sincetomorrow/cultural-intelligence",
       "description": "The cultural GPS for AI commerce. 504,472 aesthetic worlds mapped across 193 dimensions — from dark academia to k-beauty to quiet luxury. 3,154 autonomous agents update intelligence every 48 hours. 9 tools: product recommendations with affiliate links, brand cultural position, trend intelligence, commerce gap predictions, world comparisons, and live cultural signals. Free. Open source. MIT licensed. 14 AI companies already consume our data at 33,000+ requests/hour. Open Source Commerce For All.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:sincetomorrow/cultural-intelligence"
     },
     {
       "name": "google/news",
       "description": "Search Google News for current and recent articles. No API key required. Data via SerpAPI; Smithery is not affiliated with Google.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:google/news"
     },
     {
       "name": "Nekzus/npm-sentinel-mcp",
       "description": "Provide AI-powered real-time analysis and intelligence on NPM packages, including security, dependencies, performance, and quality metrics. Enable faster and safer package management decisions by integrating with Claude and Anthropic AI. Deliver comprehensive insights such as vulnerability scanning, download trends, and maintenance status to optimize your npm ecosystem.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:Nekzus/npm-sentinel-mcp"
     },
     {
       "name": "aryankeluskar/polymarket-mcp",
       "description": "Discover and filter Polymarket prediction markets and events by tags, volume, liquidity, and activity. Analyze individual markets with probabilities, market health, and recent trade insights to inform decisions. Track trends across categories to spot opportunities and compare sentiment over time.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:aryankeluskar/polymarket-mcp"
     },
     {
       "name": "j4th/mtg-mcp-server",
       "description": "Magic: The Gathering card search, combo lookup, draft analytics, and Commander tools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:j4th/mtg-mcp-server"
     },
     {
       "name": "industrylens/mcp",
       "description": "Track competitor pricing changes, strategic moves and whole-market landscapes from any AI agent: real, source-backed B2B SaaS intelligence with real dates.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:industrylens/mcp"
     },
     {
       "name": "framesail/framesail",
       "description": "Create long-form (faceless YouTube) videos end to end from any MCP client: script, locked character references, storyboard, voiceover, and final video editing — with characters and style held consistent across every shot.\n\nMaking long-form AI video today means 8+ tabs stitched by hand — an LLM for the script, a voice model, an image model, a video model — with characters drifting between tools and style resetting at every export. Framesail replaces the patchwork: the whole pipeline runs in one place and manages your video's context end to end.\n\nSix stages: Style (paste images, videos, or YouTube links and Framesail reverse-engineers the look, voice, and direction), Script (write it yourself or generate it in your narrative style), Reference images (auto-generated for every character, place, and prop), Voiceover (one narrator or many characters, with word-level timing), Storyboard (planned scene by scene), and Editor (captions, music, SFX, then export).\n\nNo black box: you control every prompt, asset, model, and setting.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:framesail/framesail"
     },
     {
       "name": "cyanheads/pubmed-mcp-server",
       "description": "Search PubMed/Europe PMC, fetch articles and full text (PMC/EPMC/Unpaywall), citations, MeSH terms.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:cyanheads/pubmed-mcp-server"
     },
     {
       "name": "bissell-skyler/cityparity",
       "description": "cityparity compares two cities on the numbers that actually decide a move. Give it a salary and a family situation and it returns take-home pay, a full cost breakdown (housing, healthcare, childcare, food, transit, travel home, property tax), the equivalent salary you'd need in the target city, and the non-cash deltas people move for: statutory vacation, parental leave, and universal healthcare. It can also rank cities by a composite quality score and look up inbound-worker tax regimes (Italy impatriati, Portugal IFICI, and others). About 165 cities across 69 countries. Free, no API key, hosted Streamable HTTP.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:bissell-skyler/cityparity"
     },
     {
       "name": "lmktoday/commerce",
       "description": "Give any AI agent a shopping brain. LMK.today is an open Model Context Protocol server with curated cross-merchant search, real price history, live demand signals, and editorial gift collections — no account required.  More at https://lmk.today/mcp",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:lmktoday/commerce"
     },
     {
       "name": "pinksaltlamp75/Your-Echo-Agent-",
       "description": "Built by a PR tech publicist, Your Echo Agent delivers truly personalized cold emails tied to LinkedIn campaigns for SaaS, agencies, e-commerce, founders, local businesses, and PR clients — all from Claude, Cursor, Windsurf, or Continue.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pinksaltlamp75/Your-Echo-Agent-"
     },
     {
       "name": "getgapup/gapup-mcp",
       "description": "270+ agent-payable C-suite expertises (competitive intel, SEC filings, sanctions multi-jurisdiction, KYC,\n  pentest scope, clinical evidence GRADE-graded, real-estate deals EU-first, ESG, NAICS classifier, patent\n  landscape, research paper Q&A). x402 USDC/EURC micro-payments. Free tier 100 calls/mo, no credit card.\n  Dual-audience (human/agent).",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:getgapup/gapup-mcp"
     },
     {
       "name": "secureship/docs",
       "description": "Secureship MCP gives AI assistants access to a multi-carrier shipping API covering rate comparison, label generation, package tracking, pickup scheduling, address book management, shipment history, customs documents, and more — across carriers like UPS, FedEx, Purolator, Canpar, and others. Browse 150+ live endpoint schemas, parameters, and auth details — always current, never stale.\n\nSecureship isn't just for shipping with one carrier — it's a multi-carrier shipping platform, and this MCP server gives AI assistants full access to the API documentation for every supported action: compare rates across carriers, generate shipping labels, track packages, schedule pickups, manage address books, review shipment history, produce customs documents, handle invoices, and even perform actions available on the Secureship web dashboard — all through a single API.\n\nThe MCP documentation server exposes live endpoint metadata pulled directly from the running application — not static docs that go stale. That means AI assistants always get the correct paths, parameters, request bodies, response schemas, and authentication requirements for 150+ endpoints.\n\nRead-only, public, no API key needed to browse. Authentication for the actual shipping API uses a simple X-API-KEY header.\n\n**Tools exposed:**\n- SearchDocs — keyword search across all API endpoints\n- GetEndpointDetail — full schema for a specific endpoint (params, request body, responses, auth)\n- ListEndpoints — list all endpoints, optionally filtered by category\n- GetAuthInfo — authentication instructions (X-API-KEY header)\n\n**Categories:** Shipping, logistics, e-commerce, carriers, rates, labels, tracking, address book, customs documents, shipment history",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:secureship/docs"
     },
     {
       "name": "boar-network/blockchain-basic",
       "description": "Free, keyless MCP server with 50 read-only blockchain tools for Bitcoin, Ethereum, and Mezo. No installation, no API key required - just add the URL to your MCP client and start querying balances, transactions, blocks, ENS names, ERC-20 tokens, smart contracts, and more. Runs on Cloudflare's global edge network via Streamable HTTP. All tools are strictly read-only and stateless.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:boar-network/blockchain-basic"
     },
     {
       "name": "xqb/vibe-pay",
       "description": "Platform access code. Email coryhigham@gmail.com with subject \"MCP Trial\" to request one",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:xqb/vibe-pay"
     },
     {
       "name": "primitivedotdev/primitive",
       "description": "Email infrastructure for AI agents — send, receive, search, and manage email over a clean HTTP API. Connect verified domains, route inbound mail, set up webhooks, and automate email workflows. Authenticate with a Primitive API key or via OAuth.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:primitivedotdev/primitive"
     },
     {
       "name": "nexgendata-apify/github-mcp-server",
       "description": "Repo statistics, trending lookups, code-search queries, and dev-trend aggregation. For AI agents that need to evaluate libraries, monitor competitor projects, or surface emerging open-source tools. Distinct from the Developer Tools MCP — this one is GitHub-specific and goes deeper on repo analytics.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/github-mcp-server"
     },
     {
       "name": "listentosadhu/corpus",
       "description": "Listen to Sadhu exposes a searchable corpus of Vedic scripture and recorded lectures. Look up verses by reference (e.g. \"BG 2.13\", \"SB 5.5.3\", \"CC Madhya 8.128\") with original Devanagari/Bengali, IAST transliteration and translations; read commentaries, prose chapters and letters; and search transcribed talks with semantic + lexical retrieval. Inline audio/video players let you hear a lecture passage or watch a clip. Read-only, no auth, no writes.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:listentosadhu/corpus"
     },
     {
       "name": "malinoto/tracepass-mcp-server",
       "description": "MCP server for TracePass — the EU Digital Product Passport (DPP) compliance platform for the ESPR and EU Battery Regulation. Lets AI assistants create products, build and audit Digital Product Passports (battery: 91 fields; electronics: 166), set economic-operator parties, and read or capture GS1 EPCIS 2.0 supply-chain events. 6 tools, 2 resources, 5 prompts. Connect to the hosted endpoint (https://ai.tracepass.eu/mcp) with a TracePass tp_ API key, or run locally via npx -y tracepass-mcp-server.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:malinoto/tracepass-mcp-server"
     },
     {
       "name": "vivaldoeuropes/vivaldo-product-discovery",
       "description": "Public read-only MCP server for Vivaldo.shop, a European online store for MacBook cases, iPad cases, laptop sleeves, keyboard covers, screen protectors and everyday computer accessories.\n\nThis server helps AI agents discover public Vivaldo products by searching the storefront, reading product details and listing products from public Shopify collections.\n\nAvailable tools:\n\n* `get_store_info` — returns public information about Vivaldo, product categories and shipping.\n* `search_products` — searches public Vivaldo products by keyword.\n* `get_product_by_handle` — returns public product details from a Shopify product handle.\n* `get_collection_products` — lists public products from a Shopify collection.\n\nSafety scope:\n\nThis MCP server is public and read-only. It does not provide access to customer accounts, checkout actions, orders, payments, private customer data or Shopify Admin APIs.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:vivaldoeuropes/vivaldo-product-discovery"
     },
     {
       "name": "virtualsms/virtualsms-mcp",
       "description": "Real SIM phone numbers for AI agents performing SMS verification across 2000+ services (WhatsApp, Telegram, Tinder, Discord, Instagram, OnlyFans, Hinge, Bumble, PayPal, Google, Apple, Binance) and 145+ countries. 18 tools across discovery, account, and order management. Real physical SIMs survive carrier_lookup VoIP detection that breaks eSIM-based competitors on services with strict anti-fraud. Ranked #1 MCP for SMS verification on ChatGPT, Perplexity, and Gemini.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:virtualsms/virtualsms-mcp"
     },
     {
       "name": "vbhjckfd/lad-lviv-ua",
       "description": "Lviv (Ukraine) public transport MCP server — live arrivals, vehicle positions, stop discovery, route shapes, and static timetables. No API key required.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:vbhjckfd/lad-lviv-ua"
     },
     {
       "name": "hjsh200219/fortuneteller",
       "description": "Discover personalized Four Pillars (Saju) readings, from daily to yearly fortunes and 10-year luck cycles, based on your birth data. Check relationship compatibility and receive Yongshin-driven guidance with practical tips on colors, directions, and careers. Convert between lunar and solar calendars and tailor interpretations across different schools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:hjsh200219/fortuneteller"
     },
     {
       "name": "moodtrip/moodtrip-hotel-search",
       "description": "MoodTrip is an AI-powered hotel search that understands natural language. Instead of clicking through dozens of filters, simply describe your ideal stay: \"boutique hotel in Tokyo for 2 adults, December 10-15, under $200/night.\" MoodTrip interprets your request, searches real-time availability across thousands of properties, and returns hotels with:\n\nLive pricing and availability\nHotel photos and ratings\nDirect booking links\nSmart constraint relaxation when results are limited\nPerfect for travelers who know what they want but hate the traditional search process.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:moodtrip/moodtrip-hotel-search"
     },
     {
       "name": "quelvio/mcp-server",
       "description": "**Your company's brain for AI agents.**\n\nQuelvio continuously understands your organization's knowledge across every connected system — what's authoritative, what's recent, what's persistent, what's temporary, and what should be forgotten. Returns cited answers grounded in your authoritative sources, refusing when the corpus doesn't actually answer the question.\n\n## What makes Quelvio different\n\n- **Cross-document supersession** — when sources conflict, surfaces the current truth and explicitly names what it supersedes\n- **Authority-weighted retrieval** — weights documents by who said them on the relevant topic\n- **Refuses on weak context** — when the corpus doesn't actually answer, says so. No hallucinated numbers, no fabricated citations\n- **Cross-source synthesis** — reasons across Slack, Confluence, Notion, Drive simultaneously with explicit source attribution\n- **Lifecycle awareness** — tracks current vs deprecated content, flags stale procedures\n\n## Tools\n\n- `query_knowledge` — search across all connected sources with optional synthesis modes (fast / standard / deep)\n- `list_domains` — discover what knowledge domains your tenant has indexed\n- `get_source_detail` — chunk-level provenance for any cited result\n\n## Setup\n\n1. Sign up at https://quelvio.com — 5GB indexed + 2 queries/day free tier\n2. Connect your sources (Google Drive, SharePoint, Confluence, Slack, Notion, GitHub)\n3. Add this MCP server to your client\n4. Complete OAuth on first tool call\n\n## Authentication\n\nOAuth 2.1 with PKCE. Per-employee identity propagation — each query is scoped to the individual employee's permissions in source systems.\n\n## Pricing\n\nPer Knowledge Token model. Paid plans scale with usage and seats.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:quelvio/mcp-server"
     },
     {
       "name": "voidly/mcp-server",
       "description": "Connect to Voidly’s hosted MCP entry point for Atlas censorship data, marketplace discovery, agent mail, and available board and bounty workflows. Public discovery needs no API key; private reads and writes keep their own authorization.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:voidly/mcp-server"
     },
     {
       "name": "pipeworx/gateway",
       "description": "Live data for AI agents. 250+ data sources, 900+ tools. Ask questions in plain English with ask_pipeworx — trade flows, SEC filings, drug safety, housing data, and more. No API keys needed.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pipeworx/gateway"
     },
     {
       "name": "hithereiamaliff/mcp-malaysiatransit",
       "description": "A Model Context Protocol server that taps access to real-time bus and train information across 12 Malaysian cities. Get live arrivals, vehicle tracking, and route details from Rapid KL, Rapid Penang, and various BAS.MY services across Malaysia.\n\nCurrently covering the following areas:\n\n- Kangar\n- Alor Setar\n- Penang\n- Klang Valley (Kuala Lumpur, Selangor, Putrajaya)\n- Melaka\n- Johor Bahru\n- Kota Bharu\n- Kuala Terengganu\n- Kuching\n- Ipoh\n- Seremban\n\nMore areas to be covered soon!\n\nNote: this is NOT an official MCP server by the Government of Malaysia or anyone from Prasarana Malaysia, Ministry of Transport (MOT), Agensi Pengangkutan Awam Darat (APAD), KTM Berhad, or operators involved in BAS.MY operations.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:hithereiamaliff/mcp-malaysiatransit"
     },
     {
       "name": "bouch/pinescript",
       "description": "MCP server providing Pine Script v6 documentation for AI assistants.\n\nEnables AI to:\n\n    Look up Pine Script functions and validate syntax\n    Access official documentation for indicators, strategies, and visuals\n    Understand Pine Script concepts (execution model, repainting, etc.)\n    Generate correct v6 code with proper function references",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:bouch/pinescript"
     },
     {
       "name": "nitrofire-q/gread",
       "description": "Gives your AI access to the source code of all public github repos.\n\n- Plug and Play: Compatible with all popular coding agents and MCP clients, ready to use out of the box\n- Skill and MCP: Both Skill and MCP are provided, connect with either option\n- Docs Integration: Automatically recognizes docs repo and provides them along with the main repo when accessed",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nitrofire-q/gread"
     },
     {
       "name": "henry-ships/sparkforge",
       "description": "Access a versatile collection of tools for media generation, web scraping, and cryptocurrency research. Convert between data formats, summarize long documents, and extract text from images or PDFs with ease. Streamline your workflow by automating tasks like SEO metadata extraction, code reviews, and content creation.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:henry-ships/sparkforge"
     },
     {
       "name": "openclaw-hal9000/romulus-31780",
       "description": "ROMulus is a retro gaming ROM search engine that aggregates results from four major sites. Search by game title and console to get download page URLs, cover images, and file sizes... all in one all.\n\n Tools:\n • search_roms — Find ROMs by title, optionally filtered by console (NES, SNES, N64, GameCube, PS1,\n   PS2, PSP, GBA, Genesis, Dreamcast, and 20+ more)\n • get_game_details — Fetch full metadata for a game: year, region, genre, languages, rating,\n  serial number, and description\n • list_systems — List all 28 supported consoles\n\n No API key required.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:openclaw-hal9000/romulus-31780"
     },
     {
       "name": "defibabylon/defi-intel",
       "description": "Operator-grade DeFi intelligence MCP. \n- 10 tools vs DefiLlama's basic 4,\n- adds governance proposals, \n- RWA attestation scores, \n- live X/Twitter narrative. \n- No enterprise subscription\n- and a one-call operator brief that compiles TVL + yields + stablecoins + governance + market narrative into a single NotebookLM-ready document.\n\nSources: DefiLlama, rwa-attest, gov-scout, Grok x_search. \nBuilt for DeFi researchers, protocol contributors, and fund analysts.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:defibabylon/defi-intel"
     },
     {
       "name": "nausika/nausika",
       "description": "Marine, maritime, nautical and sailing data for AI assistants and chatbots. Mediterranean marine forecast: wind, wave, swell, gust. Tide tables and tidal predictions. Sea routing and passage planning on a coastline-aware maritime graph. Curated POIs: marinas, ports, harbors, anchorages, moorings, fuel. Real data, cited sources, never invented.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nausika/nausika"
     },
     {
       "name": "cyanheads/openalex-mcp-server",
       "description": "Access the OpenAlex academic research catalog — 270M+ publications.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:cyanheads/openalex-mcp-server"
     },
     {
       "name": "FaresYoussef94/aws-knowledge-mcp",
       "description": "A fully managed remote MCP server that provides up-to-date documentation, code samples, knowledge about the regional availability of AWS APIs and CloudFormation resources, and other official AWS content.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:FaresYoussef94/aws-knowledge-mcp"
     },
     {
       "name": "cyanheads/wikipedia-mcp-server",
       "description": "Search Wikipedia, read summaries and full text, target sections, find nearby pages, list languages.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:cyanheads/wikipedia-mcp-server"
     },
     {
       "name": "memxus/memxus",
       "description": "**Memxus** is multi-platform persistent memory for AI assistants. Save project context, preferences, and decisions once — recall them in Claude, ChatGPT, Cursor, and other MCP clients.\n\n## What it does\n- **Remember** — store facts, preferences, and project context with collections and tags\n- **Recall** — semantic search across your memories\n- **Get context** — formatted context blocks for the current topic\n- **Manage** — list, inspect, update scope, and delete memories\n\n## Connect\n- **OAuth** (recommended): sign in with Google via your Memxus dashboard\n- **API key**: create an `aimem_*` key at [dashboard.memxus.com](https://dashboard.memxus.com)\n\n**MCP endpoint:** `https://mcp.memxus.com/mcp`  \n**Docs:** [memxus.com/docs/mcp](https://www.memxus.com/docs/mcp)  \n**Install:** [memxus.com/install](https://www.memxus.com/install)  \n**Privacy:** [memxus.com/privacy](https://www.memxus.com/privacy)\n\n## Tools\n`remember`, `recall`, `get_context`, `list_memories`, `get_memory`, `list_collections`, `forget`, `memory_stats`\n\nBuilt for developers and power users who work across multiple AI tools without repeating the same context every session.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:memxus/memxus"
     },
     {
       "name": "digby-oldridge/colour-memory-api",
       "description": "The world's only historically grounded colour archive built for AI agents.\n\nThousands of named colours across dozens of cultural archives spanning Ancient Rome, Byzantine Empire, Georgian Pleasures, Dickens, Shakespeare, Keats, Japan, Islamic tradition, Viking Norse, Racing Silks, toxic pigments, literary colour, imperial palettes, and many more.\n\nEvery color has a name, a documented archival source, CIE Lab values, cultural consequence data, and material provenance. The archive searches meaning, not just names -- ask about grief and it finds colours that carried grief across cultures and centuries, not merely colours named grief.\n\nBuilt as a retrieval system, not a generator. Deterministic, evidence-based, source-cited. The anti-hallucination layer for colour history. \n\nPrefer a direct connection? Point your MCP client at https://api.colourmemory.com/mcp — no signup, no key for the free tools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:digby-oldridge/colour-memory-api"
     },
     {
       "name": "fenglucc/ko-financial-data",
       "description": "Real SEC, 13F, insider, congress & macro data your AI agent can cite. 24 tools — institutional 13F holdings (85M+ rows), insider & congress trades, spot-Bitcoin-ETF ownership, company financials, and Treasury/Fed/BLS macro series. Every answer traces back to the original SEC filing. Free tier: 200 calls/day.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:fenglucc/ko-financial-data"
     },
     {
       "name": "pipeworx/pipeworx",
       "description": "Live data for AI — one connector to SEC filings, economics, FDA, patents, weather, prediction markets, and more across 750+ official sources, with citations. The hero tool ask_pipeworx routes any question to the right source and returns structured, cited data.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:pipeworx/pipeworx"
     },
     {
       "name": "capratesignals/cap-rate-signals",
       "description": "Cap Rate Signals — US Real Estate Investment Intelligence\n\nIdentifies US real estate markets that are about to reprice upward, before consensus catches up. Tracks confirmed corporate investment — semiconductor fabs, pharma plants, defense campuses, data centers — and scores markets based on where workers are arriving but housing demand hasn't yet been priced in.\n\n14 tools covering market discovery, investment briefs, head-to-head comparisons, regional comps, signal alerts, and map data. Data sourced live from a proprietary database monitoring 109 companies across 40+ US metros.\n\nUse it to ask: Where should I invest right now? What's happening in Indianapolis? Show me semiconductor markets under $300K. What moved this week?",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:capratesignals/cap-rate-signals"
     },
     {
       "name": "nexgendata-apify/finance-mcp-server",
       "description": "Quick market data for AI workflows: real-time quotes, crypto prices, foreign exchange rates, portfolio P&L calculations. Wraps Yahoo Finance, CoinGecko, and FinViz behind a single tool surface. Use for trading copilots, financial planning chats, or end-of-day reporting agents.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/finance-mcp-server"
     },
     {
       "name": "cyanheads/nist-nvd-mcp-server",
       "description": "Search and audit NIST NVD CVEs by keyword, severity, CWE, CISA KEV status, and CPE.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:cyanheads/nist-nvd-mcp-server"
     },
     {
       "name": "creativelead/unclick",
       "description": "AI agent tool marketplace. 60+ tools for social, e-commerce, accounting, messaging, media, and more. Search and call tools for Slack, Reddit, Discord, Shopify, Xero, Bluesky, TMDB, Steam, and 50+ more services.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:creativelead/unclick"
     },
     {
       "name": "ramboweb3/hivecast-x711",
       "description": "Pay-per-call tool API for autonomous agents. x402 payments on Base. 27 tools including web search, price feeds, and The Hive shared memory layer.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ramboweb3/hivecast-x711"
     },
     {
       "name": "govbase/govbase",
       "description": "Govbase provides U.S. federal policy data — search bills, executive orders, look up Congress members and voting records, browse narrative story bundles, and get civic info like representatives and polling locations by address.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:govbase/govbase"
     },
     {
       "name": "larrybuildsai/resultrail",
       "description": "ResultRail by LarryBuildsAI sells pay-per-success public-data result packs for AI agents. It returns source URLs, confidence, timestamps, and receipt hashes for domain enrichment, URL extraction, and single-result lookup workflows. Use it when an agent needs one useful public-data result with a clear stop condition.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:larrybuildsai/resultrail"
     },
     {
       "name": "nexgendata-apify/legal-mcp-server",
       "description": "Federal and state court record lookup. Run a name or company through and get back filings, case status, and judgment data. Common uses: M&A due diligence, hiring background checks, journalist investigations. Returns structured records, not raw PDFs.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/legal-mcp-server"
     },
     {
       "name": "nexgendata-apify/redfin-mcp-server",
       "description": "Focused Redfin tool: feed it an address or listing URL, get back full property history, price-per-sqft, days on market, and neighborhood context. Pairs with the broader Real Estate MCP for market-level queries; this one is for the 'tell me everything about this specific house' question.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/redfin-mcp-server"
     },
     {
       "name": "cyanheads/census-mcp-server",
       "description": "Query U.S. Census Bureau data, variables, and geography via MCP.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:cyanheads/census-mcp-server"
     },
     {
       "name": "tijaniismael62/revnuvo-dns",
       "description": "Revnuvo MCP server for the agent economy. Tools: verify domains, resolve DNS, assess domain trust/risk, register agents, create tasks, submit results, verify task outputs, and get agent reputation leaderboard. The canonical developer home for the Revnuvo x402 ecosystem — SDK, Gateway, and Resource APIs is developers.revnuvo.site",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:tijaniismael62/revnuvo-dns"
     },
     {
       "name": "iwantfyi/iwant",
       "description": "Demand-side commerce for AI agents. Tell iwant.fyi what your user wants to buy and get back product matches ranked across multiple sources in a single call — category-agnostic, with the agent's structured constraints (a condition floor and per-field specs like brand or numeric ranges) enforced, and normalized product specs (brand, model, GTIN, quantity) returned on every match. Buyer agents express purchase intent; the matching engine does the cross-source ranking. MCP-native with an HTTP and A2A interface. Reference implementation of the open iwant.fyi demand-side protocol v1.0.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:iwantfyi/iwant"
     },
     {
       "name": "king-of-the-grackles/discourse-forum-mcp",
       "description": "Manage and explore forum communities by searching topics, reading posts, and viewing user profiles. Facilitate communication through chat channels, draft management, and categorized content discovery. Streamline interactions with tools for filtering topics and generating post summaries or replies.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:king-of-the-grackles/discourse-forum-mcp"
     },
     {
       "name": "delx/delx-mcp",
       "description": "Agent operations platform with 20+ tools for AI agents. Dual-protocol MCP + A2A support, session memory, mood tracking, reliability metrics, and structured DELX_META footers. Built for production agent workflows.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:delx/delx-mcp"
     },
     {
       "name": "EthanHenrickson/math-mcp",
       "description": "Enable your LLMs to perform accurate numerical calculations with a simple API. Leverage basic arithmetic and statistical functions to enhance your applications. Simplify complex mathematical tasks effortlessly and improve your model's capabilities.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:EthanHenrickson/math-mcp"
     },
     {
       "name": "ThierryThevenet/talao",
       "description": "Discover supported verification scopes and the claims they provide. Initiate and monitor data wallet verification flows to securely receive redacted wallet data. Clean up completed sessions to keep workflows organized.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ThierryThevenet/talao"
     },
     {
       "name": "aparajithn/agent-utils",
       "description": "Streamline technical workflows with a comprehensive suite of data transformation and validation utilities. Convert between diverse formats like JSON, CSV, and Markdown while managing encodings and identifiers efficiently. Enhance productivity by performing complex text analysis, regex testing, and timestamp conversions instantly.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:aparajithn/agent-utils"
     },
     {
       "name": "info-6d0w/backtesting-arena",
       "description": "Connect directly: https://tradingstrategies.work/api/mcp\n\nQuantitative crypto backtesting & Bitcoin market-regime analytics. 73 MCP tools: honest look-ahead-aware backtest validation with Deflated-Sharpe-Ratio correction, point-in-time 10-indicator Bitcoin cycle scoring, macro-regime composites, Edge-Library filter effects, 22 on-chain BRK series (since 2009), altcoin screener, sentiment, \"buy now or wait?\" decision-math, conditional historical-analog base rates & live subscriptions. Core outputs are not reproducible from public OHLCV/market-data APIs. Covers crypto plus stocks/ETFs/commodities/forex. Free tier, no credit card.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:info-6d0w/backtesting-arena"
     },
     {
       "name": "travis-kellogg1/coinrailz-mcp",
       "description": "63 x402 micropayment services via USDC — crypto analytics, trading signals, NASA/ESA satellite data, IoT sensors, AI inference, and prediction markets. Coinbase AgentKit compatible. Pay per call with prepaid credits or native on-chain USDC.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:travis-kellogg1/coinrailz-mcp"
     },
     {
       "name": "nexgendata-apify/google-maps-mcp-server",
       "description": "B2B lead generation tool: search Google Maps by 'plumbers in Austin', get back business profiles with emails, phone numbers, ratings, websites. The differentiator over plain Google Maps API is the contact-enrichment layer (scraped from each business's site). Built for agency prospecting workflows.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/google-maps-mcp-server"
     },
     {
       "name": "intake-triage/steadyfetch",
       "description": "Reliable web fetching MCP server with built-in retry logic, circuit breaker patterns, caching, and anti-bot bypass. Fetches URLs as raw HTML or clean markdown optimized for LLM consumption. Includes domain health checks and cache management tools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:intake-triage/steadyfetch"
     },
     {
       "name": "ahmed2real/thinkzone",
       "description": "Access real-time US weather forecasts, alerts, radar, and station observations from the National Weather Service. Retrieve aviation products including TAFs and SIGMETs for flight planning. Build location-aware features with point metadata, grid forecasts, and zone products.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ahmed2real/thinkzone"
     },
     {
       "name": "dev-7bd0/mcp-server",
       "description": "55 tools. Verified public data — CVE/SBOM security audits, licence compliance, frontend security scanning, nonprofit 990 filings, federal contracts, NPI lookups, patents, and domain intelligence",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:dev-7bd0/mcp-server"
     },
     {
       "name": "gordgus/ignav-flights",
       "description": "Hosted MCP server providing live flight prices, booking links, and airport lookup for AI agents and travel apps.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:gordgus/ignav-flights"
     },
     {
       "name": "ThierryThevenet/talao",
       "description": "Discover supported verification scopes and the claims they provide. Initiate and monitor data wallet verification flows to securely receive redacted wallet data. Clean up completed sessions to keep workflows organized.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ThierryThevenet/talao"
     },
     {
       "name": "aparajithn/agent-utils",
       "description": "Streamline technical workflows with a comprehensive suite of data transformation and validation utilities. Convert between diverse formats like JSON, CSV, and Markdown while managing encodings and identifiers efficiently. Enhance productivity by performing complex text analysis, regex testing, and timestamp conversions instantly.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:aparajithn/agent-utils"
     },
     {
       "name": "info-6d0w/backtesting-arena",
       "description": "Connect directly: https://tradingstrategies.work/api/mcp\n\nQuantitative crypto backtesting & Bitcoin market-regime analytics. 73 MCP tools: honest look-ahead-aware backtest validation with Deflated-Sharpe-Ratio correction, point-in-time 10-indicator Bitcoin cycle scoring, macro-regime composites, Edge-Library filter effects, 22 on-chain BRK series (since 2009), altcoin screener, sentiment, \"buy now or wait?\" decision-math, conditional historical-analog base rates & live subscriptions. Core outputs are not reproducible from public OHLCV/market-data APIs. Covers crypto plus stocks/ETFs/commodities/forex. Free tier, no credit card.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:info-6d0w/backtesting-arena"
     },
     {
       "name": "travis-kellogg1/coinrailz-mcp",
       "description": "63 x402 micropayment services via USDC — crypto analytics, trading signals, NASA/ESA satellite data, IoT sensors, AI inference, and prediction markets. Coinbase AgentKit compatible. Pay per call with prepaid credits or native on-chain USDC.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:travis-kellogg1/coinrailz-mcp"
     },
     {
       "name": "nexgendata-apify/google-maps-mcp-server",
       "description": "B2B lead generation tool: search Google Maps by 'plumbers in Austin', get back business profiles with emails, phone numbers, ratings, websites. The differentiator over plain Google Maps API is the contact-enrichment layer (scraped from each business's site). Built for agency prospecting workflows.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:nexgendata-apify/google-maps-mcp-server"
     },
     {
       "name": "intake-triage/steadyfetch",
       "description": "Reliable web fetching MCP server with built-in retry logic, circuit breaker patterns, caching, and anti-bot bypass. Fetches URLs as raw HTML or clean markdown optimized for LLM consumption. Includes domain health checks and cache management tools.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:intake-triage/steadyfetch"
     },
     {
       "name": "ahmed2real/thinkzone",
       "description": "Access real-time US weather forecasts, alerts, radar, and station observations from the National Weather Service. Retrieve aviation products including TAFs and SIGMETs for flight planning. Build location-aware features with point metadata, grid forecasts, and zone products.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:ahmed2real/thinkzone"
     },
     {
       "name": "dev-7bd0/mcp-server",
       "description": "55 tools. Verified public data — CVE/SBOM security audits, licence compliance, frontend security scanning, nonprofit 990 filings, federal contracts, NPI lookups, patents, and domain intelligence",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:dev-7bd0/mcp-server"
     },
     {
       "name": "gordgus/ignav-flights",
       "description": "Hosted MCP server providing live flight prices, booking links, and airport lookup for AI agents and travel apps.",
-      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)"
+      "source": "smithery.ai registry (pages 1-12, fetched 2026-11-09)",
+      "server": "smithery:gordgus/ignav-flights"
     }
   ]
 }

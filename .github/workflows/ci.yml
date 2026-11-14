@@ -23,3 +23,5 @@ jobs:
         run: python scripts/measure_rule_ablation.py --check
       - name: Benign corpus stays false-positive free (and the bound is reported)
         run: python scripts/fp_upper_bound.py --out fp_bound.json --check
+      - name: Cross-tool checks stay silent on real published servers
+        run: python -m pytest tests/test_cross_tool.py -q
