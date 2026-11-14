@@ -34,7 +34,10 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 
 ## 安装
 
-**PyPI：尚未发布，发行名改为 `mcp-guard-scan`。** 两个独立原因，都已实测/源码核对：
+**PyPI：`pip install mcp-guard-scan`** —— 0.2.1 起可用，首发于 2026-11-11T11:22Z。
+
+发行名是 `mcp-guard-scan` 而不是 `mcp-guard`，**console script 名一个都没改**（装完仍是
+`mcp-guard` / `mcp-guard-scan` / `mcp-guard-proxy`）。两个阻塞原因均已实测/源码核对：
 
 1. **原名 `mcp-guard` 永久不可用**——PyPI 的 `ultranormalize_name()`（小写 → 去掉
    `.`/`_`/`-` → `l/L/i/I`→`1` → `o/O`→`0`）把 `mcp-guard` 归一成 `mcpguard`，与
@@ -57,9 +60,11 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
    （`.github/workflows/publish.yml`，个人 scope 的 pending publisher 走
    `ratelimited=False` 分支，不受配额限制），以及本机已布防的 systemd 定时器
    （窗口释放后自动 `twine`-等效上传并校验 JSON API，见仓库外
-   `~/.config/mcp-guard/publish.py`）。
+   `~/.config/mcp-guard/publish.py`）。**结果**：2026-11-11T11:22Z 窗口释放，
+   首发由定时器通道完成（`mcp_guard_scan-0.2.1` 的 wheel 与 sdist 均 HTTP 200），
+   本段自此为历史记录，不是当前状态。
 
-下面三种安装方式都是公开、可匿名、无需 PyPI 的：
+三种免 PyPI 的等价装法（同样公开、可匿名）：
 
 ```bash
 # 方式一：GitHub Release 工件（v0.2.1，含 SHA256SUMS）
@@ -188,6 +193,16 @@ embedded newlines"）；HTTP 代理覆盖 Streamable HTTP 的**请求侧**——
 自定义传输仍不覆盖。它输出的是 `auditable-llm-eval` 的 `runner --tool-calls` 与
 `agent-trace` 能消费的观测记录（trace 自 88a4a28 起同时绑定能力轴 tier 与
 tier_mismatches），不负责模型评分，也不把词法命中当作最终安全裁决。
+
+**上游目的地校验**（2026-11-14 新增，`guard/netguard.py`）：一个会连到别人递给它
+的 URL 的安全扫描器本身就是 SSRF 跳板，而云实例元数据端点（AWS/GCP
+`169.254.169.254`、ECS `169.254.170.2`、阿里云 `100.100.100.200`、AWS IPv6
+`fd00:ec2::254`）对任何能发 HTTP 的人发放凭据。因此 `--upstream` 指向
+link-local / 元数据端点时**拒绝启动**（exit 2），且转发**不跟随 HTTP redirect**
+（否则一条 `Location` 头就能把我们弹过去）。loopback 与 RFC1918 照常放行——
+MCP server 本来就在本机或内网。`--allow-link-local-upstream` 是给测试的显式
+逃生门。残余风险：校验发生在连接之前，解析器二次应答不同（DNS rebinding）
+仍有窗口，与 snyk-agent-scan 的公开限制相同。
 
 `--offline` 的实测输出（52 条案例：32 poison / 22 benign）：
 

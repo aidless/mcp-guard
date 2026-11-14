@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **上游目的地校验**（`guard/netguard.py` + `guard/http_proxy.py`）：`--upstream`
+  指向云实例元数据或 link-local 地址时拒绝启动（exit 2），转发不跟随 HTTP redirect。
+  拒绝清单：`169.254.0.0/16`（AWS/GCP IMDS、ECS task metadata）、`fe80::/10`、
+  `fd00:ec2::254`、`100.100.100.0/24`（阿里云）、以及 `metadata.google.internal`
+  等名字黑名单；每个 DNS 应答都检查，不只第一条。loopback / RFC1918 / 公网照常放行。
+  `--allow-link-local-upstream` 是给测试的显式逃生门。动机借自 `snyk-agent-scan`
+  ——一个会连到别人递给它的 URL 的扫描器本身就是 SSRF 跳板。残余风险（连接前校验，
+  DNS rebinding 仍有窗口）写在模块 docstring 里。
+- `tests/test_ssrf_guard.py` 18 条：6 类拒绝目标、5 类放行目标、DNS 应答全量检查、
+  redirect 不跟随（用本地哨兵服务器计命中，不连真实元数据 IP）、CLI fail-closed。
+
+### Fixed
+
+- **文档漂移**：README 安装段此前仍写「PyPI 尚未发布」，实际 `mcp-guard-scan==0.2.1`
+  已于 2026-11-11T11:22Z 上线。现改为 PyPI 首选，429 事件作为历史记录保留并标注结果。
+
 ## 0.2.1 — 2026-11-10
 
 ### Changed
