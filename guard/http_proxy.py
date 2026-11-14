@@ -28,22 +28,25 @@ response_scan），两个传输面的门禁语义不会漂移。
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
+import socket
 import sys
-import urllib.error
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from guard.capability import TIER_RANK  # noqa: E402
-from guard.netguard import BlockedUpstream, check_upstream  # noqa: E402
-from guard.proxy import (  # noqa: E402
+from guard.netguard import BlockedUpstream, check_upstream, resolve_pinned  # noqa: E402
+from guard.proxy import (
+    SURFACE_METHODS,
     Policy,
     call_decision,
     response_scan,
+    surface_scan,
     tools_scan,
 )
 
@@ -64,6 +67,7 @@ class GateState:
         self.allowlist: set[str] | None = None
         self.capabilities: list[dict] = []
         self.calls: list[dict] = []
+        self.surfaces: dict[str, dict] = {}
 
     # -- tools/list gate ------------------------------------------------
     def handle_tools_response(self, resp: dict) -> dict | None:
@@ -101,6 +105,24 @@ class GateState:
         return None
 
     # -- tools/call gate ------------------------------------------------
+    # -- prompts / resources gate ---------------------------------------
+    def handle_surface_response(self, kind: str, resp) -> dict | None:
+        """P-A2: the three non-tools surfaces reach the model too. Same rules,
+        minus the capability axis. Returns the JSON-RPC error to substitute."""
+        result = resp.get("result") if isinstance(resp, dict) else None
+        scan = surface_scan(result, kind)
+        self.surfaces[kind] = scan
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        (self.log_dir / "surface_manifest.json").write_text(
+            json.dumps(self.surfaces, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        if scan["flagged"] and self.block_on_hit:
+            return {"jsonrpc": "2.0", "id": None,
+                    "error": {"code": -32001,
+                              "message": f"mcp-guard blocked {kind}: poisoned entry(ies) "
+                                         + ", ".join(scan["flagged"])}}
+        return None
+
     def handle_call(self, msg: dict) -> tuple[dict, dict | None]:
         """Gate a tools/call request. Returns (entry, error-or-None); the entry
         is also appended to self.calls (flushed)."""
@@ -146,30 +168,59 @@ class GateState:
             encoding="utf-8")
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """Surface 30x instead of following it.
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """An HTTP connection that dials an ALREADY-VALIDATED address.
 
-    urllib's default opener follows redirects, so an allowed public upstream could
-    bounce us into the metadata endpoint via a single ``Location`` header.  snyk
-    refuses to follow for the same reason; returning None makes urllib raise the
-    30x as an HTTPError, which `_forward` reports as a normal status.
+    ``host`` is still used for the Host header so virtual hosting works; the
+    socket goes to ``pinned_ip``. That separation is the whole point: the name is
+    resolved once, by :func:`guard.netguard.resolve_pinned`, and never again.
     """
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+    def __init__(self, host: str, port: int, pinned_ip: str, timeout: float = 60):
+        super().__init__(host, port, timeout=timeout)
+        self._pinned_ip = pinned_ip
+
+    def connect(self) -> None:  # noqa: D401 - http.client protocol
+        self.sock = socket.create_connection((self._pinned_ip, self.port), self.timeout)
 
 
-_OPENER = urllib.request.build_opener(_NoRedirect)
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """TLS variant: same pinning, with certificate verification on by default."""
+
+    def __init__(self, host: str, port: int, pinned_ip: str, timeout: float = 60,
+                 context=None):
+        super().__init__(host, port, timeout=timeout, context=context)
+        self._pinned_ip = pinned_ip
+
+    def connect(self) -> None:
+        sock = socket.create_connection((self._pinned_ip, self.port), self.timeout)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 
-def _forward(upstream: str, body: bytes, headers: dict) -> tuple[int, str, bytes]:
-    req = urllib.request.Request(upstream, data=body, method="POST",
-                                 headers={"Content-Type": "application/json"})
+def _forward(upstream: str, body: bytes, headers: dict,
+             resolver=None) -> tuple[int, str, bytes]:
+    """Forward to the upstream, connecting to the address the guard validated.
+
+    Resolving at connect time would reopen the DNS-rebinding window the startup
+    check exists to close (see P-A3). A 30x is surfaced as an ordinary response:
+    http.client never follows redirects, so no ``Location`` header can bounce an
+    allowed upstream into the metadata endpoint.
+    """
+    scheme, host, port, pinned_ip = resolve_pinned(upstream, resolver=resolver)
+    parts = urlsplit(upstream)
+    path = parts.path or "/"
+    if parts.query:
+        path += "?" + parts.query
+    cls = _PinnedHTTPSConnection if scheme == "https" else _PinnedHTTPConnection
+    conn = cls(host, port, pinned_ip, timeout=60)
     try:
-        with _OPENER.open(req, timeout=60) as resp:
-            return resp.status, resp.headers.get("Content-Type", "application/json"), resp.read()
-    except urllib.error.HTTPError as exc:
-        return exc.code, exc.headers.get("Content-Type", "application/json"), exc.read()
+        conn.request("POST", path, body=body,
+                     headers={"Content-Type": "application/json"})
+        resp = conn.getresponse()
+        ctype = resp.getheader("Content-Type") or "application/json"
+        return resp.status, ctype, resp.read()
+    finally:
+        conn.close()
 
 
 def make_handler(upstream: str, state: GateState):
@@ -207,6 +258,19 @@ def make_handler(upstream: str, state: GateState):
                         resp = None
                     err = state.handle_call_response(entry, resp, m.get("id"))
                     if err is not None:
+                        replacements[idx] = err
+                    else:
+                        relays[idx] = (status, ctype, up_body)
+                elif method in SURFACE_METHODS:
+                    status, ctype, up_body = _forward(
+                        upstream, body if single else json.dumps(m).encode(), dict(self.headers))
+                    try:
+                        resp = json.loads(up_body)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        resp = None
+                    err = state.handle_surface_response(SURFACE_METHODS[method], resp)
+                    if err is not None:
+                        err["id"] = m.get("id")
                         replacements[idx] = err
                     else:
                         relays[idx] = (status, ctype, up_body)

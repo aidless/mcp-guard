@@ -118,17 +118,21 @@ def _default_resolver(host: str, port: int) -> list[str]:
     return [info[4][0] for info in infos]
 
 
-def check_upstream(
+def resolve_pinned(
     url: str,
     *,
     resolver=None,
     allow_link_local: bool = False,
-) -> None:
-    """Refuse an upstream URL that resolves to a metadata / link-local endpoint.
+) -> tuple[str, int, str, str]:
+    """Validate an upstream URL and return the address to *connect to*.
 
-    Raises :class:`BlockedUpstream` with a reason-bearing message.  Returns None
-    when the URL is acceptable.  ``resolver`` is injectable for tests so no
-    network is touched.
+    Returns ``(scheme, host, port, ip)`` where ``ip`` passed the metadata check.
+    Callers must connect to ``ip`` and send the original ``host`` as the Host
+    header.  Resolving the name a second time at connect time is precisely the
+    DNS-rebinding window this function exists to remove.
+
+    Same judgments as :func:`check_upstream`, but the verdict is returned rather
+    than discarded.
     """
     parts = urlsplit(url)
     host = parts.hostname
@@ -155,24 +159,43 @@ def check_upstream(
         try:
             candidates = resolve(host, port)
         except OSError as exc:
-            # Unresolvable is not a security decision — let the connect fail later
-            # with a normal error rather than blaming SSRF.
             raise BlockedUpstream(
                 f"cannot resolve {host} ({exc}); not verified as safe",
                 kind="unresolvable",
             ) from None
 
+    safe: str | None = None
     for cand in candidates:
         try:
             ip = ipaddress.ip_address(cand)
         except ValueError:
             continue
         reason = _ip_reason(ip)
-        if reason is None:
-            continue
-        if allow_link_local and ip.is_link_local:
-            continue
+        if reason is not None and not (allow_link_local and ip.is_link_local):
+            raise BlockedUpstream(
+                f"refusing upstream {url!r}: {cand} is {reason}; "
+                f"this endpoint hands out credentials to anyone who asks"
+            )
+        if safe is None:
+            safe = str(ip)
+
+    if safe is None:
         raise BlockedUpstream(
-            f"refusing upstream {url!r}: {cand} is {reason}; "
-            f"this endpoint hands out credentials to anyone who asks"
+            f"cannot resolve {host}: no usable address returned", kind="unresolvable"
         )
+    return parts.scheme or "http", host, port, safe
+
+
+def check_upstream(
+    url: str,
+    *,
+    resolver=None,
+    allow_link_local: bool = False,
+) -> None:
+    """Refuse an upstream URL that resolves to a metadata / link-local endpoint.
+
+    Raises :class:`BlockedUpstream`; returns None when acceptable.  This is the
+    startup gate; :func:`resolve_pinned` is the same judgment for callers that
+    need the checked address to pin the connection to.
+    """
+    resolve_pinned(url, resolver=resolver, allow_link_local=allow_link_local)

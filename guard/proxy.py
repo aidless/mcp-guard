@@ -140,6 +140,80 @@ class Policy:
         return None
 
 
+#: Every MCP surface that carries natural-language text into the model's
+#: context. `tools` has its own richer gate (capability axis); the other three
+#: are poison-only. A URI is an identifier, not prose, so it is not scanned.
+SURFACE_SPECS: dict[str, str] = {
+    "prompts": "prompts",
+    "resources": "resources",
+    "resourceTemplates": "resourceTemplates",
+}
+
+#: JSON-RPC method -> which surface its result carries.
+SURFACE_METHODS: dict[str, str] = {
+    "prompts/list": "prompts",
+    "resources/list": "resources",
+    "resources/templates/list": "resourceTemplates",
+}
+
+
+def _surface_fields(item, kind: str) -> list[tuple[str, str]]:
+    """(field label, text) for each model-visible human-language field."""
+    if not isinstance(item, dict):
+        return []
+    out: list[tuple[str, str]] = []
+    for key in ("name", "title", "description"):
+        value = item.get(key)
+        if isinstance(value, str) and value:
+            out.append((key, value))
+    if kind == "prompts":
+        # An argument's description is rendered next to the prompt; a payload
+        # hid there reaches the model even when the prompt's own text is clean.
+        for index, arg in enumerate(item.get("arguments") or []):
+            if not isinstance(arg, dict):
+                continue
+            label = arg.get("name") or str(index)
+            for key in ("description", "title"):
+                value = arg.get(key)
+                if isinstance(value, str) and value:
+                    out.append((f"arguments[{label}].{key}", value))
+    return out
+
+
+def surface_scan(result, kind: str) -> dict:
+    """P-A2: run the poison rules over prompts / resources / resourceTemplates.
+
+    Covering only `tools` while telling users they are protected is a claim the
+    code would not back — all four surfaces reach the model. Returns the same
+    observe/block shape the tools gate uses, minus the capability axis.
+    """
+    key = SURFACE_SPECS.get(kind)
+    items = result.get(key) if (key and isinstance(result, dict)) else None
+    if not isinstance(items, list):
+        items = []
+
+    n_items = 0
+    flagged: list[str] = []
+    rule_ids: set[str] = set()
+    hits: list[dict] = []
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            continue
+        n_items += 1
+        name = item.get("name") or item.get("title") or item.get("uri") or f"#{index}"
+        item_flagged = False
+        for field, text in _surface_fields(item, kind):
+            for hit in scan_text(text):
+                item_flagged = True
+                rule_ids.add(hit["rule"])
+                hits.append({"surface": kind, "name": name, "field": field,
+                             "rule": hit["rule"], "anchor": hit.get("anchor")})
+        if item_flagged and name not in flagged:
+            flagged.append(name)
+    return {"surface": kind, "n_items": n_items, "flagged": flagged,
+            "rule_ids": sorted(rule_ids), "hits": hits}
+
+
 def tools_scan(tools: list[dict]) -> dict:
     """Pure request-side tools/list evaluation, shared by the stdio and the
     Streamable HTTP transports. Returns everything both gates need: digests,
@@ -254,6 +328,7 @@ class Proxy:
         self.manifest: dict | None = None
         self.capabilities: list[dict] = []
         self.calls: list[dict] = []
+        self.surfaces: dict[str, dict] = {}
         self.pending: dict[object, str] = {}
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
@@ -305,6 +380,28 @@ class Proxy:
             return False
         return True
 
+    # -- prompts / resources --------------------------------------------
+    def _write_surfaces(self) -> None:
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        with self.write_lock:
+            (self.log_dir / "surface_manifest.json").write_text(
+                json.dumps(self.surfaces, sort_keys=True, ensure_ascii=False,
+                           indent=2) + "\n", encoding="utf-8")
+
+    def _handle_surface(self, msg_id, kind: str, result) -> bool:
+        scan = surface_scan(result, kind)
+        with self.lock:
+            self.surfaces[kind] = scan
+        # Written even when clean: `absent` and `clean` are different states,
+        # and a later drift diff needs the baseline.
+        self._write_surfaces()
+        if scan["flagged"] and self.block_on_hit:
+            self._error(msg_id, -32001,
+                        f"mcp-guard blocked {kind}: poisoned entry(ies) "
+                        + ", ".join(scan["flagged"]))
+            return False
+        return True
+
     def _batch_violation(self, args: dict) -> str | None:
         if not self.block_batch_destructive or not isinstance(args, dict):
             return None
@@ -338,6 +435,9 @@ class Proxy:
             if method == "tools/list" and "id" in msg:
                 with self.lock:
                     self.pending[msg["id"]] = ("tools/list", None)
+            elif method in SURFACE_METHODS and "id" in msg:
+                with self.lock:
+                    self.pending[msg["id"]] = ("surface", SURFACE_METHODS[method])
             elif method == "tools/call" and "id" in msg:
                 seq = len(self.calls)  # _handle_call appends exactly one entry
                 if not self._handle_call(msg):
@@ -369,6 +469,9 @@ class Proxy:
             method = pending[0] if pending else None
             if method == "tools/list":
                 if not self._handle_tools(msg_id, msg.get("result", {})):
+                    continue
+            elif method == "surface":
+                if not self._handle_surface(msg_id, pending[1], msg.get("result", {})):
                     continue
             elif method == "tools/call":
                 seq = pending[1]
