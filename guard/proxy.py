@@ -293,7 +293,9 @@ def call_decision(state, params: dict) -> tuple[dict, str | None]:
         if batch_reason:
             blocked, reason = True, batch_reason
 
-    entry = {"seq": len(state.calls), "tool": tool,
+    # seq is assigned by CallLog.append (it owns the counter); callers of this
+    # pure decision function do not know it, so it is filled in on append.
+    entry = {"tool": tool,
              "arg_keys": sorted(args) if isinstance(args, dict) else [],
              "call_digest": _call_digest(tool, args),
              "blocked": blocked}
@@ -306,6 +308,63 @@ def call_decision(state, params: dict) -> tuple[dict, str | None]:
     return entry, (reason if blocked else None)
 
 
+class CallLog:
+    """Bounded, thread-safe record of observed tool calls.
+
+    A long agent session would otherwise hold every call in memory and rewrite
+    all of them on each flush. The cap rolls (newest survive) and the true count
+    is kept separately, so a truncated log never reads as a short session.
+    """
+
+    def __init__(self, max_calls: int = 0) -> None:
+        self.max_calls = max_calls if max_calls and max_calls > 0 else 0
+        self.entries: list[dict] = []
+        self.n_calls = 0
+        self._lock = threading.Lock()
+
+    @property
+    def dropped(self) -> int:
+        return self.n_calls - len(self.entries)
+
+    def append(self, entry: dict) -> int:
+        """Append and return the entry's sequence number."""
+        with self._lock:
+            seq = self.n_calls
+            self.n_calls += 1
+            entry.setdefault("seq", seq)
+            self.entries.append(entry)
+            if self.max_calls and len(self.entries) > self.max_calls:
+                del self.entries[: len(self.entries) - self.max_calls]
+            return seq
+
+    def find(self, seq: int) -> dict | None:
+        """The live entry recorded at ``seq``, or None once it has been dropped."""
+        with self._lock:
+            for entry in self.entries:
+                if entry.get("seq") == seq:
+                    return entry
+            return None
+
+    def snapshot(self) -> list[dict]:
+        with self._lock:
+            return list(self.entries)
+
+    def flush(self, path: Path, extra: dict | None = None) -> None:
+        with self._lock:
+            entries = list(self.entries)
+            n_calls = self.n_calls
+            dropped = self.n_calls - len(self.entries)
+            called = sorted({c.get("tool") for c in entries if c.get("tool")})
+        record = {"n_calls": n_calls, "calls_retained": len(entries),
+                  "calls_dropped": dropped, "n_tools_called": len(called),
+                  "tools_called": called, "calls": entries}
+        if extra:
+            record.update(extra)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, sort_keys=True, ensure_ascii=False,
+                                   indent=2) + "\n", encoding="utf-8")
+
+
 class Proxy:
     def __init__(self, upstream: list[str], log_dir: Path,
                  policy: Policy, block_on_hit: bool, block_unauthorized: bool,
@@ -313,7 +372,8 @@ class Proxy:
                  block_batch_destructive: bool = False,
                  require_annotations: bool = False,
                  block_tier_mismatch: bool = False,
-                 block_response_hits: bool = False):
+                 block_response_hits: bool = False,
+                 max_calls: int = 0):
         self.upstream = upstream
         self.log_dir = log_dir
         self.policy = policy
@@ -327,7 +387,7 @@ class Proxy:
         self.allowlist: set[str] | None = None
         self.manifest: dict | None = None
         self.capabilities: list[dict] = []
-        self.calls: list[dict] = []
+        self.calls = CallLog(max_calls)
         self.surfaces: dict[str, dict] = {}
         self.pending: dict[object, str] = {}
         self.lock = threading.Lock()
@@ -408,13 +468,14 @@ class Proxy:
         return batch_payload_violation(args)
 
     # -- tools/call -----------------------------------------------------
-    def _handle_call(self, msg: dict) -> bool:
+    def _handle_call(self, msg: dict) -> tuple[bool, int]:
+        """Record the call and report (proceed, seq)."""
         entry, reason = call_decision(self, msg.get("params", {}) or {})
-        self.calls.append(entry)
+        seq = self.calls.append(entry)
         if reason:
             self._error(msg.get("id"), -32002, "mcp-guard blocked tools/call: " + reason)
-            return False
-        return True
+            return False, seq
+        return True, seq
 
     # -- io loops -------------------------------------------------------
     def _client_loop(self) -> None:
@@ -439,8 +500,8 @@ class Proxy:
                 with self.lock:
                     self.pending[msg["id"]] = ("surface", SURFACE_METHODS[method])
             elif method == "tools/call" and "id" in msg:
-                seq = len(self.calls)  # _handle_call appends exactly one entry
-                if not self._handle_call(msg):
+                proceed, seq = self._handle_call(msg)
+                if not proceed:
                     continue
                 with self.lock:
                     self.pending[msg["id"]] = ("tools/call", seq)
@@ -478,10 +539,11 @@ class Proxy:
                 result = msg.get("result")
                 if isinstance(result, dict):
                     scan = response_scan(result)
-                    entry = self.calls[seq]
-                    entry["response_texts_scanned"] = scan["texts_scanned"]
-                    entry["response_flagged"] = scan["flagged"]
-                    entry["response_rule_ids"] = scan["rule_ids"]
+                    entry = self.calls.find(seq)
+                    if entry is not None:
+                        entry["response_texts_scanned"] = scan["texts_scanned"]
+                        entry["response_flagged"] = scan["flagged"]
+                        entry["response_rule_ids"] = scan["rule_ids"]
                     if scan["flagged"] and self.block_response_hits:
                         self._error(msg_id, -32007,
                                     "mcp-guard blocked tools/call result: response content "
@@ -505,19 +567,10 @@ class Proxy:
         return 0 if self.proc.returncode in (0, None) else 1
 
     def _flush_calls(self) -> None:
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        tools_called = sorted({c["tool"] for c in self.calls})
-        record = {
-            "source": "proxy",
-            "n_calls": len(self.calls),
-            "n_tools_called": len(tools_called),
-            "tools_called": tools_called,
-            "args_policy": "raw" if self.store_raw_args else "digest-only",
-            "calls": self.calls,
-        }
-        (self.log_dir / "tool_calls.json").write_text(
-            json.dumps(record, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8")
+        self.calls.flush(
+            self.log_dir / "tool_calls.json",
+            extra={"source": "proxy",
+                   "args_policy": "raw" if self.store_raw_args else "digest-only"})
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -540,6 +593,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="refuse tools/list when annotations explicitly contradict the capability tier (readOnlyHint=true on a T2/T3 tool, destructiveHint=false on a T3 tool)")
     ap.add_argument("--block-response-hits", action="store_true",
                     help="scan tools/call RESULT text content with the poison rules; a flagged result is replaced with a JSON-RPC error (-32007) instead of being relayed (default: observe-only, hits recorded in tool_calls.json)")
+    ap.add_argument("--max-calls", type=int, default=0, metavar="N",
+                    help="keep at most N call records in memory and in tool_calls.json, "
+                         "newest first (default 0 = no cap). n_calls still reports the "
+                         "true total, so a truncated log never reads as a short session")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
     ap.add_argument("upstream", nargs=argparse.REMAINDER,
@@ -570,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
                   block_tier_mismatch=(args.block_tier_mismatch
                                        or declared.get("tier_mismatch", False)),
                   block_response_hits=(args.block_response_hits
-                                       or declared.get("response_hits", False)))
+                                       or declared.get("response_hits", False)),
+                  max_calls=args.max_calls)
     return proxy.run()
 
 

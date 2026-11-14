@@ -3,6 +3,19 @@
 ## Unreleased
 
 ### Added
+- `--cross-tool`：跨工具一致性检查（共享前置 / 前置成环 / 引用不存在的工具）。
+  单条描述的规则看不到这类矛盾；良性真实 server 112 工具 0 发现，MCPTox 45
+  server 中 `shared-precondition` 7 个（`dangling` 39 个是语料把工具名随机化造成
+  的伪影，不当检出报）。
+- `--max-calls N`（stdio 与 HTTP 代理）：调用记录滚动保留最新 N 条，`n_calls`
+  仍报真实总数，新增 `calls_retained` / `calls_dropped`。`scripts/long_session.py`
+  实测 10 倍调用量下日志大小几乎不变。
+
+### Fixed
+- HTTP 代理的调用记录改为带锁的 `CallLog`：原来多线程 handler 同时 append 裸
+  list，flush 时的快照不保证 `n_calls` 与 `calls` 出自同一时刻。
+
+### Added
 
 - **上游目的地校验**（`guard/netguard.py` + `guard/http_proxy.py`）：`--upstream`
   指向云实例元数据或 link-local 地址时拒绝启动（exit 2），转发不跟随 HTTP redirect。

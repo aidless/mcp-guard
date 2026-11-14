@@ -252,6 +252,30 @@ mcp-guard-scan tools.json --require-annotations       # 写入/破坏工具缺�
 扫描与 digest。名字曾经对不上（`mcp-guard --offline` 跑的是评测而不是扫描），
 现在拆开了。
 
+### 长会话：调用记录必须有界（2026-11-14）
+
+代理默认把每次 `tools/call` 记进 `tool_calls.json`。一次 10 万调的 agent 会话会
+把 10 万条全留在内存里、每次 flush 全量重写——是内存泄漏穿了件好看的外套。
+`--max-calls N` 让记录滚动保留最新的 N 条，并且**总数照实报**：
+
+```json
+{"n_calls": 100000, "calls_retained": 10000, "calls_dropped": 90000, ...}
+```
+
+`n_calls` 报真实总数，`calls_retained` 是留下来的条数。静默只留前 N 条会让一份
+被截断的日志读起来像一次很短的会话——那是把截断伪装成事实。
+
+`python scripts/long_session.py`（默认 10 万调 / 上限 1 万）实测：append 0.37s、
+flush 0.06s、日志 1.6 MB。把调用量从 2 千加到 2 万（10 倍）、上限不变，文件大小
+325464 → 327486 字节——**10 倍的调用，几乎一样的文件**，这才叫有界。
+`tests/test_proxy_limits.py` 把这条性质锁成断言（增长超过 5% 就红）。
+
+HTTP 代理是多线程的（`ThreadingHTTPServer`），多个 handler 同时往同一个记录里
+写，所以记录是用带锁的 `CallLog` 而不是裸 list。**诚实边界**：CPython 的
+`list.append` 本身是原子的，把锁拆掉的变异**不会**变红——这道锁保证的是 flush
+取快照时 `n_calls` 与 `entries` 读自同一时刻，不是防 `append` 互相踩。别把"变异
+没红"读成"锁是装饰"，也别读成"锁被证明必要"，它没有被证明。
+
 ### 实时代理（`mcp-guard-proxy`）
 
 代理位于客户端与上游 MCP server 之间，按换行分隔的 JSON-RPC 2.0 转发消息。

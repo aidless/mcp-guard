@@ -43,6 +43,7 @@ from guard.capability import TIER_RANK  # noqa: E402
 from guard.netguard import BlockedUpstream, check_upstream, resolve_pinned  # noqa: E402
 from guard.proxy import (
     SURFACE_METHODS,
+    CallLog,
     Policy,
     call_decision,
     response_scan,
@@ -66,7 +67,9 @@ class GateState:
         self.store_raw_args = flags["store_raw_args"]
         self.allowlist: set[str] | None = None
         self.capabilities: list[dict] = []
-        self.calls: list[dict] = []
+        # Threaded server: handlers append from many threads at once, so the
+        # record is a bounded, self-locking log rather than a bare list.
+        self.calls = CallLog(flags.get("max_calls", 0))
         self.surfaces: dict[str, dict] = {}
 
     # -- tools/list gate ------------------------------------------------
@@ -156,16 +159,10 @@ class GateState:
         return None
 
     def _flush_calls(self) -> None:
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        n_tools = len({c["tool"] for c in self.calls})
-        doc = {"source": "proxy-http", "n_calls": len(self.calls),
-               "n_tools_called": n_tools,
-               "tools_called": sorted({c["tool"] for c in self.calls}),
-               "args_policy": "raw" if self.store_raw_args else "digest-only",
-               "calls": self.calls}
-        (self.log_dir / "tool_calls.json").write_text(
-            json.dumps(doc, sort_keys=True, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8")
+        self.calls.flush(
+            self.log_dir / "tool_calls.json",
+            extra={"source": "proxy-http",
+                   "args_policy": "raw" if self.store_raw_args else "digest-only"})
 
 
 class _PinnedHTTPConnection(http.client.HTTPConnection):
@@ -372,6 +369,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--block-tier-mismatch", action="store_true")
     ap.add_argument("--block-response-hits", action="store_true",
                     help="scan tools/call RESULT text content with the poison rules; a flagged result is replaced with a JSON-RPC error (-32007) instead of being relayed (default: observe-only, hits recorded in tool_calls.json)")
+    ap.add_argument("--max-calls", type=int, default=0, metavar="N",
+                    help="keep at most N call records in memory and in tool_calls.json, "
+                         "newest first (default 0 = no cap). n_calls still reports the "
+                         "true total, so a truncated log never reads as a short session")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
     ap.add_argument("--allow-link-local-upstream", action="store_true",
@@ -405,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
         "block_tier_mismatch": args.block_tier_mismatch or declared.get("tier_mismatch", False),
         "block_response_hits": args.block_response_hits or declared.get("response_hits", False),
         "store_raw_args": args.store_raw_args,
+        "max_calls": args.max_calls,
     }
     state = GateState(args.log_dir, policy, flags)
 
