@@ -15,9 +15,15 @@ MCP 2025-06-18 起 Streamable HTTP 是推荐的远程传输：客户端 POST JSO
 与 stdio 共享同一套纯决策函数（guard.proxy.tools_scan / call_decision /
 response_scan），两个传输面的门禁语义不会漂移。
 
+上游目的地校验（P-SSRF）：`--upstream` 指向云实例元数据或 link-local 地址时
+拒绝启动（见 guard/netguard.py），转发不跟随 HTTP redirect。理由很简单——一个
+会连到别人递给它的 URL 的安全扫描器本身就是 SSRF 跳板。loopback / RFC1918 /
+公网照常放行（MCP server 本来就在本机或内网）。
+
 诚实边界：tools/list 与 tools/call 的 JSON 响应会被扫描；text/event-stream
 （SSE 分帧）原样中继不做重扫；无鉴权、无会话管理（上游回什么头就转发什么头）；
-仅 JSON 断言覆盖。
+仅 JSON 断言覆盖。目的地校验发生在连接之前，解析器二次应答不同（DNS rebinding）
+仍有窗口。
 """
 from __future__ import annotations
 
@@ -33,6 +39,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from guard.capability import TIER_RANK  # noqa: E402
+from guard.netguard import BlockedUpstream, check_upstream  # noqa: E402
 from guard.proxy import (  # noqa: E402
     Policy,
     call_decision,
@@ -139,11 +146,27 @@ class GateState:
             encoding="utf-8")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Surface 30x instead of following it.
+
+    urllib's default opener follows redirects, so an allowed public upstream could
+    bounce us into the metadata endpoint via a single ``Location`` header.  snyk
+    refuses to follow for the same reason; returning None makes urllib raise the
+    30x as an HTTPError, which `_forward` reports as a normal status.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _forward(upstream: str, body: bytes, headers: dict) -> tuple[int, str, bytes]:
     req = urllib.request.Request(upstream, data=body, method="POST",
                                  headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with _OPENER.open(req, timeout=60) as resp:
             return resp.status, resp.headers.get("Content-Type", "application/json"), resp.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.headers.get("Content-Type", "application/json"), exc.read()
@@ -287,7 +310,18 @@ def main(argv: list[str] | None = None) -> int:
                     help="scan tools/call RESULT text content with the poison rules; a flagged result is replaced with a JSON-RPC error (-32007) instead of being relayed (default: observe-only, hits recorded in tool_calls.json)")
     ap.add_argument("--store-raw-args", action="store_true",
                     help="debug only: persist raw call arguments (default: digest-only)")
+    ap.add_argument("--allow-link-local-upstream", action="store_true",
+                    help="escape hatch for tests/labs: permit a link-local upstream "
+                         "(cloud-metadata endpoints are refused regardless)")
     args = ap.parse_args(argv)
+
+    # Refuse a metadata / link-local destination before anything else happens:
+    # relaying to IMDS hands out credentials, so this is fail-closed at startup.
+    try:
+        check_upstream(args.upstream, allow_link_local=args.allow_link_local_upstream)
+    except BlockedUpstream as exc:
+        print(f"[mcp-guard-http-proxy] {exc}", file=sys.stderr, flush=True)
+        return 2
 
     policy = Policy.load(args.policy, args.deny_arg_regex)
     if args.allow_tools is not None:
