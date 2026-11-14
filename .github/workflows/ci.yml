@@ -21,3 +21,5 @@ jobs:
       - run: python run_eval.py --offline
       - name: README ablation numbers stay recomputable
         run: python scripts/measure_rule_ablation.py --check
+      - name: Benign corpus stays false-positive free (and the bound is reported)
+        run: python scripts/fp_upper_bound.py --out fp_bound.json --check

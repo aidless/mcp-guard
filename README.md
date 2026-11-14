@@ -522,7 +522,14 @@ schema，报告里逐条写明了这些边界。
   `recall_case` 0.963 → **0.9688**、`recall_rule` 0.9118 → **0.9268**、
   `fpr_benign` 仍 0.0。TDD + 双向变异（拆机制 5 红、拆准则 3 红）见
   `tests/test_rule_behavior_override.py`。
-- 诚实边界：良性基座 222 条不算大，0 误报是"未观察到"不是"不存在"；
+- **良性误报要带区间报，不能只报 0**：`0/222` 的点估计不是这套规则的可靠性，
+  上界才是。同一语料上 95% 单侧上界 = **1.70%（Wilson）/ 1.35%（rule of
+  three）**——即"下一千条里仍可能误报十几条"。复算：
+  `python3 scripts/fp_upper_bound.py --check`（语料已落仓库
+  `examples/benign_corpus.json`，222 条真实描述带 `source` 字段；分母在 `/tmp`
+  里的数字不算证据）。`--check` 在任一良性描述被 flag 时 exit 1。
+- 诚实边界：良性基座 222 条不算大，0 误报是"未观察到"不是"不存在"，
+  故一律连同上界一起引用；
   `def_tool/.py` 与 `pure_tool.json` 有 19 条上游不同步（同名不同毒文），
   已记录在 probe 报告里。参数污染锚会误伤合法定义文档的
   "apiKey must be set to 'your token'" 形态（强度词+改参动词+引号字面量）——
