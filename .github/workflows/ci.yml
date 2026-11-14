@@ -22,6 +22,6 @@ jobs:
       - name: README ablation numbers stay recomputable
         run: python scripts/measure_rule_ablation.py --check
       - name: Benign corpus stays false-positive free (and the bound is reported)
-        run: python scripts/fp_upper_bound.py --out fp_bound.json --check
+        run: python scripts/fp_upper_bound.py --corpus examples/benign_corpus.json --corpus examples/smithery_tool_corpus.json --out fp_bound.json --check
       - name: Cross-tool checks stay silent on real published servers
         run: python -m pytest tests/test_cross_tool.py -q

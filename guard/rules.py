@@ -127,7 +127,7 @@ RULES = [
             # qubit 变体刻意把强度句与动作句用句号隔开，窗口允许跨一句，
             # FP 研究实测 163/485 命中、良性 114 描述 + 19 案例全 0 命中）
             r"\b(?:must|mandatory|obligatory)\b.{0,140}?"
-            r"(?:call\w*|us\w*|run|invok\w*|execut\w*)\b\s*[^.\n]{0,20}?['\"`](?P<anchor>[\w_-]+)['\"`]",
+            r"(?:\bcall\w*|\bus\w*|\brun|\binvok\w*|\bexecut\w*)\b\s*[^.\n]{0,20}?['\"`](?P<anchor>[\w_-]+)['\"`]",
         ],
         "why": "条件调用序劫持：以强制度词强制先调用另一工具执行载荷",
     },

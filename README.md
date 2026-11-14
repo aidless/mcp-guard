@@ -579,18 +579,35 @@ schema，报告里逐条写明了这些边界。
   （`examples/smithery_benign.json`，R4 前置）= 222 条描述 0 误报后落地
   `behavior-override` / `param-pollution` 两族六锚，并把 call-order 的动词表
   扩到 invoke/execute、引号类扩到反引号（+115 投毒命中、良性仍 0）。
-  覆盖 215 → **347/485 = 71.6%**；案例语料 47 → 52（32 毒 / 22 良），
+  覆盖 215 → **347/485 = 71.6%**（后续为修真实语料误报给 `us\w*` 加词边界，
+  降到 346/485 = 71.3%，见下方诚实边界）；案例语料 47 → 52（32 毒 / 22 良），
   `recall_case` 0.963 → **0.9688**、`recall_rule` 0.9118 → **0.9268**、
   `fpr_benign` 仍 0.0。TDD + 双向变异（拆机制 5 红、拆准则 3 红）见
   `tests/test_rule_behavior_override.py`。
-- **良性误报要带区间报，不能只报 0**：`0/222` 的点估计不是这套规则的可靠性，
-  上界才是。同一语料上 95% 单侧上界 = **1.70%（Wilson）/ 1.35%（rule of
-  three）**——即"下一千条里仍可能误报十几条"。复算：
-  `python3 scripts/fp_upper_bound.py --check`（语料已落仓库
-  `examples/benign_corpus.json`，222 条真实描述带 `source` 字段；分母在 `/tmp`
-  里的数字不算证据）。`--check` 在任一良性描述被 flag 时 exit 1。
-- 诚实边界：良性基座 222 条不算大，0 误报是"未观察到"不是"不存在"，
-  故一律连同上界一起引用；
+- **良性误报要带区间报，不能只报 0**：点估计不是这套规则的可靠性，上界才是。
+  两份语料合起来 **3760 条真实工具描述**（`examples/benign_corpus.json` 222 条
+  官方/第三方 + `examples/smithery_tool_corpus.json` 3538 条来自 smithery 注册表
+  162 个 server 实际发布的 `tools[].description`），实测 **1/3760 = 0.027%**，
+  95% 单侧上界 = **0.15%（Wilson）/ 0.08%（rule of three）**。复算：
+  `python3 scripts/fp_upper_bound.py --corpus examples/benign_corpus.json
+  --corpus examples/smithery_tool_corpus.json --check`（分母在 `/tmp` 里的数字不算
+  证据）。
+- **扩到四位数之后，误报不再是 0——而这次扩大是对的**：222 条时是
+  `0/222`（上界 1.70%），3538 条真实工具描述一进来立刻抓到 **3 条**，其中
+  **2 条是机制假阳**：`call-order-hijack` 的第三个 pattern 里动词交替
+  `(?:call\w*|us\w*|run|invok\w*|execut\w*)` 前面**没有词边界**，于是
+  `us\w*` 匹配到了 `status` / `customers` / `because` 里的 "us"。加 `\b` 后两条
+  消失，代价是 MCPTox 覆盖 347 → **346/485 = 71.3%**（丢的那一条 ClickHouse
+  样本原本是靠 `customers` 里的 "us" 巧合命中的，不是规则真读懂了它——现在如实
+  记作漏检）。
+- 剩 1 条留在 `examples/known_false_positives.json` 里，**带理由、不隐藏**：
+  `calculate_fare` 的 "You MUST first call get_fare_routes to get route_id" 是
+  合法编排（先取 ID 才能继续），句式与恶意模板**完全相同**，词法层面无法区分——
+  要分开得看被要求先调的那个工具是不是 T3（能力轴的活，不是措辞的活）。
+  `--check` 只对**未解释**的误报 exit 1，所以新增误报仍会红，已有的这条不会被
+  悄悄原谅。
+- 诚实边界：良性基座 3760 条里 3538 条集中在 smithery 一个注册表（生态分布有
+  偏），1 条误报是"观察到 1 条"不是"只有 1 条"，故一律连同上界一起引用；
   `def_tool/.py` 与 `pure_tool.json` 有 19 条上游不同步（同名不同毒文），
   已记录在 probe 报告里。参数污染锚会误伤合法定义文档的
   "apiKey must be set to 'your token'" 形态（强度词+改参动词+引号字面量）——

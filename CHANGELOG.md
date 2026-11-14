@@ -11,7 +11,16 @@
   仍报真实总数，新增 `calls_retained` / `calls_dropped`。`scripts/long_session.py`
   实测 10 倍调用量下日志大小几乎不变。
 
+- 良性语料扩到四位数：新增 `examples/smithery_tool_corpus.json`（smithery 注册表
+  162 个 server 实际发布的 3538 条 `tools[].description`）与
+  `scripts/benign_from_smithery.py`（从缓存 JSON 重生成，可复算）。FP 分母
+  222 → 3760，`examples/known_false_positives.json` 记录带理由的已知误报，
+  `--check` 只对未解释的误报 exit 1。
+
 ### Fixed
+- `call-order-hijack` 第三个 pattern 的动词交替缺词边界，导致 `us\w*` 匹配
+  `status` / `customers` / `because` 里的 "us"——真实工具语料上 3 条误报里有 2 条
+  出于此。加 `\b` 后误报降到 1 条（已解释），MCPTox 覆盖 347 → 346/485。
 - HTTP 代理的调用记录改为带锁的 `CallLog`：原来多线程 handler 同时 append 裸
   list，flush 时的快照不保证 `n_calls` 与 `calls` 出自同一时刻。
 
@@ -138,7 +147,8 @@
 - **behavior-override + param-pollution 规则族**（R2，MCPTox 残差 270 分型
   驱动）：行为越权四锚（priority/precedence、override…regardless of、
   must instead/rather、refined regardless-of-input）+ 参数污染两锚
-  （强度词+动词+带引号目标值/参数词）；MCPTox 覆盖 215→347/485（71.6%），
+  （强度词+动词+带引号目标值/参数词）；MCPTox 覆盖 215→347/485（71.6%，
+  后因下方词边界修复降为 346/485 = 71.3%），
   良性基座扩到 222（+ smithery 108 条实抓）仍 0 FP；语料 52 案例（32 毒/
   22 良），recall_case 0.9688、fpr 0.0、recall_rule 0.9268；裸 regardless
   边界由良性 `read_text_file`（"regardless of extension"）钉死。

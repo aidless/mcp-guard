@@ -79,3 +79,29 @@ def test_cli_writes_a_report_and_passes_the_gate() -> None:
     assert rep["n_descriptions"] == 222
     assert rep["flagged"] == 0
     assert "wilson_upper_95" in rep and "rule_of_three_95" in rep
+
+
+def test_known_false_positives_are_separated_from_unexplained(tmp_path) -> None:
+    """An explained false positive must not silently pass, and an unexplained one
+    must not silently pass either — the difference is whether a reason exists."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    from fp_upper_bound import _key, build_report
+
+    tools = [
+        {"server": "s1", "name": "calculate_fare",
+         "description": "You MUST first call get_routes to get route_id."},
+        {"server": "s1", "name": "clean_tool", "description": "Reads state."},
+    ]
+    # Nothing explained yet: the hit is unexplained.
+    rep = build_report(tools, known={})
+    assert rep["flagged"] == 1
+    assert rep["known_false_positives"] == 0
+    assert rep["unexplained"] == 1
+
+    identity = _key({"server": "s1", "name": "calculate_fare",
+                     "rules": ["call-order-hijack"]})
+    rep = build_report(tools, known={identity: "legitimate orchestration"})
+    assert rep["flagged"] == 1
+    assert rep["known_false_positives"] == 1
+    assert rep["unexplained"] == 0
+    assert rep["false_positives"][0]["known_reason"] == "legitimate orchestration"
