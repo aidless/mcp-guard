@@ -7,7 +7,6 @@ get_voice_list (same evidence, suffix form) reads T0.
 Widening is add-only: existing suffix evidence is untouched, so the
 agent-desktop 21/12/29/5 split must not move.
 """
-import json
 import subprocess
 import sys
 from pathlib import Path

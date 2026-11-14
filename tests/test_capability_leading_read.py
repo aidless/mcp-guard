@@ -9,7 +9,6 @@ Direction A: mechanism (leading-position guard) — mutating if first verb != re
 Direction B: production criterion (strictness) — don't over-suppress.
 """
 from __future__ import annotations
-import pytest
 from guard.capability import scan_capability, T2_MUTATE
 
 
