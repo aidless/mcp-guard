@@ -514,3 +514,40 @@ schema，报告里逐条写明了这些边界。
 - [ ] 让 runner 从推理路径**自动**采集 tool_calls（当前是喂入观测证据，
   因为本仓评测腿走 ollama `/api/generate` 纯文本补全、无原生 tool_calls 字段；
   自动采集需换 chat 接口 + function-calling 模型，属另一增量）。
+
+
+## 验收标准与复算
+
+本仓判为合格的条件是 `python3 eval/run_cases.py` 通过率必须为 100%（20/20），且 `make eval` 退出码必须为 0；任何一条失败即判为不合格。
+
+题库是 `eval/cases.jsonl`（20 条，七键 `id/axis/question/expected/mode/verify/source`）：每条的 `verify` 是一段真跑本仓 API 的 Python（`guard.rules.scan_text` / `guard.scan.scan_tool`、`guard.drift.diff_tool`、`guard.capability.scan_capability` 等）或现读本仓语料 `tasks/cases.jsonl` 现算的数，期望值不是从文档抄的——改一行实现就可能变红。
+
+| axis | 条数 | 测什么 | 失败意味着 |
+|---|---|---|---|
+| `rules/tag` | 3 | 投毒规则命中集合、良性描述不误报、`\uXXXX` 转义解码 |
+| `rules/anchor` | 3 | 命中 anchor 取词（`aws` / `api_token`）、原文+解码双扫去重 |
+| `scan/digest` | 2 | sha256 钉选格式、`scan_tool` 命中规则 |
+| `drift/diff` | 3 | `new_hits`、`changed_fields` 指令字段优先、载荷替换 `changed_hits` |
+| `drift/check` | 2 | 无快照时 `alarm=None`（未知≠干净）、摘要一致时 `ok` |
+| `capability/tier` | 3 | T0/T3 分层、`summarise().destructive` |
+| `capability/annotations` | 2 | 注解说谎的 `tier_mismatches`、缺失注解的 violations/warnings |
+| `corpus/recall` | 2 | 在 `tasks/cases.jsonl` 上现算 case 级召回 0.9688 与误报 0.0 |
+
+三条命令：
+
+```bash
+python3 eval/run_cases.py             # 20/20，退出码 0
+python3 eval/run_cases.py --selftest  # 篡改 MG-01 期望值 → 19/20，故意变红，退出码 0
+make eval                             # 先跑题库再跑既有 pytest，退出码 0
+```
+
+复算说明：`python3 eval/run_cases.py --save` 把本次结果落盘到 `eval/run-report.json`（`total` / `passed` / `failed` / `failed_by_axis` / 逐条 `results`），复算就是重跑上面三条命令并与该文件对表；数字变化必须能由 `verify` 的现跑结果解释，不能只改文档。`--replay` 在本仓不适用（没有历史运行序列），复算入口就是 `run_cases.py` 本身；语料两项（MG-19/MG-20）与 `python3 run_eval.py --offline` 的输出应对表一致。
+
+失败归因（按 axis 汇总，不只看 pass_rate）：`run_cases.py` 失败时输出形如
+
+```
+失败归因（按 axis）：
+  rules/tag: 1 条 —— MG-01
+```
+
+即失败按 axis 分桶并点名 case id；机器可读版本是 `run-report.json` 里的 `failed_by_axis` 字段。
