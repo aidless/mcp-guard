@@ -65,7 +65,21 @@ METADATA_NETWORKS = (
 
 
 class BlockedUpstream(Exception):
-    """Raised when an upstream URL points at a destination we refuse to contact."""
+    """Raised when an upstream URL points at a destination we refuse to contact.
+
+    ``kind`` separates causes that a caller must not conflate:
+      * ``"metadata"``    — the destination really is link-local / instance metadata
+      * ``"unresolvable"``— the name could not be looked up (offline, typo, no DNS)
+      * ``"malformed"``   — the URL has no usable host
+
+    Collapsing these was a real defect: the config auditor reported an
+    unresolvable hostname as `metadata-url`, pointing the user at the wrong
+    problem entirely.
+    """
+
+    def __init__(self, message: str, kind: str = "metadata") -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 def _ip_reason(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str | None:
@@ -119,7 +133,7 @@ def check_upstream(
     parts = urlsplit(url)
     host = parts.hostname
     if not host:
-        raise BlockedUpstream(f"{url!r} has no host component")
+        raise BlockedUpstream(f"{url!r} has no host component", kind="malformed")
     port = parts.port or (443 if parts.scheme == "https" else 80)
 
     if host.lower() in METADATA_HOSTNAMES:
@@ -144,7 +158,8 @@ def check_upstream(
             # Unresolvable is not a security decision — let the connect fail later
             # with a normal error rather than blaming SSRF.
             raise BlockedUpstream(
-                f"refusing upstream {url!r}: cannot resolve {host} ({exc})"
+                f"cannot resolve {host} ({exc}); not verified as safe",
+                kind="unresolvable",
             ) from None
 
     for cand in candidates:

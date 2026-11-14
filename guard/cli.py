@@ -41,6 +41,26 @@ def _version() -> str:
         return "0.0.0"
 
 
+def _run_discover(args) -> int:
+    from .discover import SEVERITY_ORDER, discover
+
+    extra = [pathlib.Path(p) for p in (args.discover_config or [])]
+    home = pathlib.Path(args.discover_home) if args.discover_home else None
+    report = discover(home=home, extra=extra)
+
+    blocked = 0
+    for entry in report["servers"]:
+        print(json.dumps(entry, ensure_ascii=False))
+        sev = entry.get("max_severity")
+        if sev is not None and SEVERITY_ORDER.get(sev, 0) >= SEVERITY_ORDER["medium"]:
+            blocked += 1
+    print(json.dumps({"discovered_configs": report["n_configs"],
+                      "servers": report["n_servers"],
+                      "servers_at_or_above_medium": blocked},
+                     ensure_ascii=False), file=sys.stderr)
+    return 1 if (args.fail_on_config and blocked) else 0
+
+
 def load_tools(path: str) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         tools = json.load(f)
@@ -54,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         prog="mcp-guard-scan",
         description="扫描 MCP 工具定义，输出规则命中、哈希钉选与漂移检测",
     )
-    ap.add_argument("tools", help="工具定义 JSON（数组，或 {tools: [...]}）")
+    ap.add_argument("tools", nargs="?",
+                    help="工具定义 JSON（数组，或 {tools: [...]}）；用 --discover 时可省略")
     ap.add_argument("--pin", default=None,
                     help="钉选快照文件（不存在则新建，存在则用于漂移比对）")
     ap.add_argument("--fail-on-hit", action="store_true",
@@ -65,12 +86,26 @@ def main(argv: list[str] | None = None) -> int:
                     help="存在 T3 破坏或任意执行能力时退出码 1（隐含 --capability）")
     ap.add_argument("--require-annotations", action="store_true",
                     help="能写入/破坏的工具缺少显式 readOnlyHint/destructiveHint 时退出码 1（隐含 --capability）")
+    ap.add_argument("--discover", action="store_true",
+                    help="静态审计本机 agent 的 MCP 配置（Claude/Cursor/Windsurf/...）："
+                         "不执行任何 server，只查 command/env/url")
+    ap.add_argument("--discover-home", default=None, metavar="PATH",
+                    help="在指定 HOME 下找配置（默认真实 $HOME）")
+    ap.add_argument("--discover-config", action="append", default=[], metavar="PATH",
+                    help="额外纳入的配置文件，可重复")
+    ap.add_argument("--fail-on-config", action="store_true",
+                    help="配置审计出现 medium 及以上发现时退出码 1")
     ap.add_argument("--format", choices=("jsonl", "sarif"), default="jsonl",
                     help="jsonl (default): one scan result per line; sarif: a single "
                          "SARIF 2.1.0 log for GitHub Code Scanning")
     ap.add_argument("--annotation-report", default=None, type=pathlib.Path, metavar="PATH",
                     help="把注解门结果（violations/warnings/tier_mismatches）写成 JSON 工件；只出报告不改变退出码")
     args = ap.parse_args(argv)
+
+    if args.discover:
+        return _run_discover(args)
+    if not args.tools:
+        ap.error("either a tools JSON path or --discover is required")
 
     tools = load_tools(args.tools)
     want_capability = (args.capability or args.fail_on_capability
