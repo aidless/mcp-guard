@@ -79,9 +79,10 @@ pip install .
 mcp-guard --offline
 ```
 
-> **版本提示**：`--format sarif` 与 `--discover` 是 0.2.1 之后新增的（见 CHANGELOG 的
-> `Unreleased` 段），PyPI 上的 0.2.1 **尚未包含**——装 PyPI 版跑这两个旗标会得到
-> `unrecognized arguments`。要现在用请从仓库装：
+> **版本提示**：PyPI 上的 0.2.1 **不包含** 0.2.1 之后的三项改动——`--format sarif`
+> （SARIF/CWE 输出）、`--discover`（配置审计）、以及 HTTP 代理的上游目的地校验
+> （含 `--allow-link-local-upstream`）。装 PyPI 版跑前两个会得到
+> `unrecognized arguments`，而且**代理没有 SSRF 防护**。要现在用请从仓库装：
 > `pip install git+https://github.com/aidless/mcp-guard`。
 
 开发（可编辑 + 跑测试）：
