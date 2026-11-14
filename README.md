@@ -107,6 +107,27 @@ python3 -m guard.cli examples/whatsapp_tools.json --capability
 python3 -m guard.proxy --log-dir runs/gate1 -- python3 tests/fake_mcp_server.py
 ```
 
+### CI 集成：SARIF 进 GitHub Code Scanning
+
+`--format sarif` 输出单个 SARIF 2.1.0 文档，直接喂给 Code Scanning，命中会变成
+PR 上的行内注解（默认 `jsonl` 输出不变，老消费者不受影响）：
+
+```bash
+mcp-guard-scan tools.json --format sarif > mcp-guard.sarif
+```
+
+```yaml
+- run: pip install mcp-guard-scan && mcp-guard-scan mcp.json --format sarif > mcp-guard.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with: { sarif_file: mcp-guard.sarif }
+```
+
+规则表带 CWE 映射（`auth-url-exec`→CWE-78、`param-pollution`→CWE-88、
+`secret-read`→CWE-200、`exfil-param`/`encoded-exfil`/`recipient-rewrite`→CWE-201，
+编号按 cwe.mitre.org 核对过）。三条提示注入类规则（`imperative-tag` /
+`call-order-hijack` / `behavior-override`）**没有标准 CWE**——OWASP LLM01 是最接近
+的参照且不是 CWE 条目，所以它们在规则表里显式写 "no standard CWE"，不借错编号。
+
 ### 能力层：投毒扫描绿不等于工具安全
 
 投毒规则回答「描述有没有试图操纵模型」，不回答「一个诚实的工具能不能杀进程、
