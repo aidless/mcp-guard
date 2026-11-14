@@ -128,6 +128,39 @@ mcp-guard-scan tools.json --format sarif > mcp-guard.sarif
 `call-order-hijack` / `behavior-override`）**没有标准 CWE**——OWASP LLM01 是最接近
 的参照且不是 CWE 条目，所以它们在规则表里显式写 "no standard CWE"，不借错编号。
 
+### 配置审计：先看配置文件，再信任里面的 server
+
+`--discover` 静态审计本机 agent 的 MCP 配置（Claude Desktop / Claude Code /
+Cursor / Windsurf / Gemini CLI / Continue / VS Code），**不执行任何 server、不发
+任何请求**。snyk-agent-scan 在这个位置会启动 server 去读 `tools/list`（所以它需要
+SSRF 防护和 `--dangerously-run-mcp-servers`）；先审计再运行是更安全的顺序，而配置
+文件本身就已经是攻击面——它带着每次会话启动都会执行的 `command`、一整个 `env`
+凭据块、有时还有一个 URL。
+
+```bash
+mcp-guard-scan --discover                        # 每 server 一行 JSON
+mcp-guard-scan --discover --fail-on-config       # 有 medium 及以上发现即退出码 1
+mcp-guard-scan --discover --discover-home /tmp/h  # 指定 HOME（测试/容器）
+mcp-guard-scan --discover --discover-config ./team-mcp.json
+```
+
+六类发现：
+
+| rule | 级别 | 抓什么 |
+| --- | --- | --- |
+| `metadata-url` | high | 端点指向云元数据 / link-local（复用 `guard/netguard`，在代理拒绝启动之前一步抓到） |
+| `shell-wrapper` | high | `bash -c ...`、`powershell -Command ...`：每个参数都是可执行代码 |
+| `remote-fetch-exec` | high | `curl ... \| sh` 这类远端下载直接进解释器 |
+| `plaintext-http` | medium | 远程 MCP 端点走明文 HTTP（loopback/内网不报） |
+| `secret-in-env` | medium | `env` 里 key 名像凭据且值非空——**只报 key 名，不回显值** |
+| `unpinned-npx` | low | `npx -y pkg` 没钉版本，每次启动重新解析，上游发版即可换掉运行的代码 |
+
+`--fail-on-config` 只在 medium 及以上阻断，所以 `unpinned-npx` 这种提示不会卡住 CI。
+
+一条实测出来的口径：**解析不了的域名报 `unresolvable-url`（low），不报
+`metadata-url`**。离线/无 DNS 时"我没查成"和"你指向了元数据端点"是两件事，混在
+一起会把人引向错误的问题。代理那边相反——连不出去就不启动（fail-closed）。
+
 ### 能力层：投毒扫描绿不等于工具安全
 
 投毒规则回答「描述有没有试图操纵模型」，不回答「一个诚实的工具能不能杀进程、

@@ -15,8 +15,20 @@
 - `tests/test_ssrf_guard.py` 18 条：6 类拒绝目标、5 类放行目标、DNS 应答全量检查、
   redirect 不跟随（用本地哨兵服务器计命中，不连真实元数据 IP）、CLI fail-closed。
 
+- **配置审计** `guard/discover.py` + `mcp-guard-scan --discover`：静态审计本机
+  agent 的 MCP 配置（不执行、不请求），六类发现 `metadata-url` / `shell-wrapper` /
+  `remote-fetch-exec` / `plaintext-http` / `secret-in-env` / `unpinned-npx`。
+  `--fail-on-config` 只在 medium 及以上阻断。凭据只报 key 名不回显值。
+- **SARIF 2.1.0 输出** `guard/sarif.py` + `--format sarif`：`driver.rules` 镜像
+  9 条规则，每命中一条 result，供 GitHub Code Scanning 生成 PR 注解；规则表带
+  CWE 映射（78/88/200/201，按 cwe.mitre.org 核对），三条提示注入规则显式声明
+  "no standard CWE" 而非借用错编号。
+
 ### Fixed
 
+- `BlockedUpstream` 增加 `kind`（metadata / unresolvable / malformed）：配置文件审计
+  此前把"域名解析失败"误报成 `metadata-url`，会把用户引向错误的问题。现在审计报
+  `unresolvable-url`（low），而 HTTP 代理对不可解析上游仍 fail-closed（exit 2）。
 - **文档漂移**：README 安装段此前仍写「PyPI 尚未发布」，实际 `mcp-guard-scan==0.2.1`
   已于 2026-11-11T11:22Z 上线。现改为 PyPI 首选，429 事件作为历史记录保留并标注结果。
 
