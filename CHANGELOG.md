@@ -2,6 +2,15 @@
 
 ## 0.3.0 — 2026-11-14
 
+发布记录：0.3.0 于 2026-11-14T11:10Z 经 token 通道上传到 PyPI
+（`mcp_guard_scan-0.3.0` wheel 72212B / sdist 154038B），GitHub Release
+[`v0.3.0`](https://github.com/aidless/mcp-guard/releases/tag/v0.3.0) 附三个工件。
+**OIDC 可信发布仍未打通**：Release 事件触发的 `Publish to PyPI` workflow
+报 `invalid-publisher`（"valid token, but no corresponding publisher"），
+即 PyPI 账号侧还没登记 pending publisher。登记口径要与 workflow 对齐——
+workflow 里写了 `environment: pypi`，所以登记时 **Environment 必须填
+`pypi`**，否则 OIDC 的 `environment` claim 对不上。
+
 ### Added
 - `--cross-tool`：跨工具一致性检查（共享前置 / 前置成环 / 引用不存在的工具）。
   单条描述的规则看不到这类矛盾；良性真实 server 112 工具 0 发现，MCPTox 45
