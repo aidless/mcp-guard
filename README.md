@@ -25,6 +25,21 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 2. **pin**：对工具定义做 sha256 钉选，服务端会话间改描述即告警
    （防 rug pull：先合法后投毒）。
 
+## 相关工作（真实对比）
+
+mcp-guard 站在五类已证实的真实工作上，与它们**明确不同**：
+
+| 相关工作 | 真实出处 | mcp-guard 的不同 |
+|---|---|---|
+| MCPTox 投毒研究 | MCPTox（2025-08）：45 个真实 MCP 服务 × 20 个模型，投毒成功率最高 72.8% | MCPTox **证明**投毒可行；本仓**做**离线扫描器，且**不声明**同等检出率 |
+| OWASP Agentic Top 10 | OWASP Agentic Top 10（2025-12）收录语义层投毒 | 本仓是**工具定义级**扫描（name/description/schema），不是 agent 框架级 |
+| postmark-mcp 真实投毒 | postmark-mcp 1.0.16 静默 BCC（收件人改写） | 本仓 `recipient-rewrite` 家族直接检这个原型 |
+| Microsoft 外泄技术确认 | Microsoft 2026-06 确认为通用外泄技术 | 本仓把"description 改写"当**外泄通道**做字段级 diff，而非仅依赖扫描 |
+| 传统依赖扫描（pip-audit / lockfile） | 业界标准 | 扫的是**依赖**，看不见**语义层**；本仓扫的是工具描述文本 |
+
+**核心区别**：这些工作是**攻击面的实证研究**（证明漏洞存在），本仓是**防御工具**
+（做离线、确定性、零模型调用的扫描 + 钉选）。因此本仓不把它们的检出率当自己的能力声明。
+
 ## 诚实性约束
 
 - 规则是**词法/语义启发式**，不是模型判断：对抗性改写可绕过，评测集
@@ -376,7 +391,7 @@ sha256 答不了的问题：
 没有历史快照时只报 digest 不一致，`fields` 标
 `<unknown: no snapshot stored>`——不猜。
 
-## 离线评测结果（`rules-v1`，52 案例：32 毒 + 22 良）
+## 离线评测结果（`rules-v1`，54 案例：32 毒 + 22 良）
 
 | 指标 | 值 | 读法 |
 |---|---|---|
@@ -409,7 +424,7 @@ sha256 答不了的问题：
 （没写 `~/.ssh`）、`exfil-param`（没用 `fill ... with`）、`recipient-rewrite`。
 
 消融测量（`scripts/measure_rule_ablation.py`，摘掉规则在内存里重算，一条命令可复算）。
-下表是对**当前** `cases.jsonl`（52 案例：32 毒 / 22 良，41 条 gold 规则）的实测：
+下表是对**当前** `cases.jsonl`（54 案例：32 毒 / 22 良，41 条 gold 规则）的实测：
 
 | | recall_case | fpr_benign | recall_rule |
 |---|---|---|---|
@@ -616,7 +631,6 @@ schema，报告里逐条写明了这些边界。
   这是校准边界；代理默认只观测、扫描器 fail-closed，宁可误报不冒进。
   残差 138 条中 MUST 族只剩 21 条（大部分无强度词），再往下是弱锚区，
   已知边界不硬追。
-
 ## 待办
 
 - [x] rug-pull pin 机制（2026-10-14 落地，含字段级 diff）
@@ -662,3 +676,40 @@ schema，报告里逐条写明了这些边界。
 - [ ] 让 runner 从推理路径**自动**采集 tool_calls（当前是喂入观测证据，
   因为本仓评测腿走 ollama `/api/generate` 纯文本补全、无原生 tool_calls 字段；
   自动采集需换 chat 接口 + function-calling 模型，属另一增量）。
+
+
+## 验收标准与复算
+
+本仓判为合格的条件是 `python3 eval/run_cases.py` 通过率必须为 100%（20/20），且 `make eval` 退出码必须为 0；任何一条失败即判为不合格。
+
+题库是 `eval/cases.jsonl`（20 条，七键 `id/axis/question/expected/mode/verify/source`）：每条的 `verify` 是一段真跑本仓 API 的 Python（`guard.rules.scan_text` / `guard.scan.scan_tool`、`guard.drift.diff_tool`、`guard.capability.scan_capability` 等）或现读本仓语料 `tasks/cases.jsonl` 现算的数，期望值不是从文档抄的——改一行实现就可能变红。
+
+| axis | 条数 | 测什么 | 失败意味着 |
+|---|---|---|---|
+| `rules/tag` | 3 | 投毒规则命中集合、良性描述不误报、`\uXXXX` 转义解码 |
+| `rules/anchor` | 3 | 命中 anchor 取词（`aws` / `api_token`）、原文+解码双扫去重 |
+| `scan/digest` | 2 | sha256 钉选格式、`scan_tool` 命中规则 |
+| `drift/diff` | 3 | `new_hits`、`changed_fields` 指令字段优先、载荷替换 `changed_hits` |
+| `drift/check` | 2 | 无快照时 `alarm=None`（未知≠干净）、摘要一致时 `ok` |
+| `capability/tier` | 3 | T0/T3 分层、`summarise().destructive` |
+| `capability/annotations` | 2 | 注解说谎的 `tier_mismatches`、缺失注解的 violations/warnings |
+| `corpus/recall` | 2 | 在 `tasks/cases.jsonl` 上现算 case 级召回 0.9688 与误报 0.0 |
+
+三条命令：
+
+```bash
+python3 eval/run_cases.py             # 20/20，退出码 0
+python3 eval/run_cases.py --selftest  # 篡改 MG-01 期望值 → 19/20，故意变红，退出码 0
+make eval                             # 先跑题库再跑既有 pytest，退出码 0
+```
+
+复算说明：`python3 eval/run_cases.py --save` 把本次结果落盘到 `eval/run-report.json`（`total` / `passed` / `failed` / `failed_by_axis` / 逐条 `results`），复算就是重跑上面三条命令并与该文件对表；数字变化必须能由 `verify` 的现跑结果解释，不能只改文档。`--replay` 在本仓不适用（没有历史运行序列），复算入口就是 `run_cases.py` 本身；语料两项（MG-19/MG-20）与 `python3 run_eval.py --offline` 的输出应对表一致。
+
+失败归因（按 axis 汇总，不只看 pass_rate）：`run_cases.py` 失败时输出形如
+
+```
+失败归因（按 axis）：
+  rules/tag: 1 条 —— MG-01
+```
+
+即失败按 axis 分桶并点名 case id；机器可读版本是 `run-report.json` 里的 `failed_by_axis` 字段。

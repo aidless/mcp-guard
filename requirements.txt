@@ -1,3 +1,3 @@
 # 运行时零依赖：规则包/扫描/钉选/漂移检测只用标准库（pyproject: dependencies = []）。
 # 这里只列开发与测试需要的包。
-pytest>=8.0
+pytest>=9.0.3

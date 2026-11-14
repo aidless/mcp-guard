@@ -27,7 +27,6 @@ sys.path.insert(0, str(REPO))
 
 from guard.capability import (  # noqa: E402
     TIER_RANK,
-    scan_capability,
     unwrap_payload,
 )
 

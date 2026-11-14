@@ -4,7 +4,6 @@ stdio 阻断/HTTP 门禁/一致性审计），全部真实子进程，任何一�
 RED 先行：demo.sh 不存在或任何腿断言失败 → 本测试红。
 """
 import subprocess
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]

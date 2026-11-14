@@ -23,7 +23,6 @@ import sys
 
 from .scan import check_drift, digest_tool, scan_tool
 from .capability import (
-    T3_DESTRUCTIVE,
     annotation_violations,
     scan_capability,
     summarise,

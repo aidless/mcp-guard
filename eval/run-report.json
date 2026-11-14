@@ -1,0 +1,129 @@
+{
+ "total": 20,
+ "passed": 20,
+ "failed": 0,
+ "selftest": false,
+ "failed_by_axis": {},
+ "results": [
+  {
+   "id": "MG-01",
+   "axis": "rules/tag",
+   "ok": true,
+   "detail": "imperative-tag,secret-read"
+  },
+  {
+   "id": "MG-02",
+   "axis": "rules/tag",
+   "ok": true,
+   "detail": "False"
+  },
+  {
+   "id": "MG-03",
+   "axis": "rules/tag",
+   "ok": true,
+   "detail": "auth-url-exec=shell = true"
+  },
+  {
+   "id": "MG-04",
+   "axis": "rules/anchor",
+   "ok": true,
+   "detail": "aws"
+  },
+  {
+   "id": "MG-05",
+   "axis": "rules/anchor",
+   "ok": true,
+   "detail": "api_token"
+  },
+  {
+   "id": "MG-06",
+   "axis": "rules/anchor",
+   "ok": true,
+   "detail": "1"
+  },
+  {
+   "id": "MG-07",
+   "axis": "scan/digest",
+   "ok": true,
+   "detail": "64:True"
+  },
+  {
+   "id": "MG-08",
+   "axis": "scan/digest",
+   "ok": true,
+   "detail": "exfil-param"
+  },
+  {
+   "id": "MG-09",
+   "axis": "drift/diff",
+   "ok": true,
+   "detail": "secret-read"
+  },
+  {
+   "id": "MG-10",
+   "axis": "drift/diff",
+   "ok": true,
+   "detail": "description,name"
+  },
+  {
+   "id": "MG-11",
+   "axis": "drift/diff",
+   "ok": true,
+   "detail": "changed:True:secret-read"
+  },
+  {
+   "id": "MG-12",
+   "axis": "drift/check",
+   "ok": true,
+   "detail": "DRIFT:None"
+  },
+  {
+   "id": "MG-13",
+   "axis": "drift/check",
+   "ok": true,
+   "detail": "ok:False"
+  },
+  {
+   "id": "MG-14",
+   "axis": "capability/tier",
+   "ok": true,
+   "detail": "T3_destructive_or_exec"
+  },
+  {
+   "id": "MG-15",
+   "axis": "capability/tier",
+   "ok": true,
+   "detail": "T0_read"
+  },
+  {
+   "id": "MG-16",
+   "axis": "capability/tier",
+   "ok": true,
+   "detail": "rm_rf,run_cmd"
+  },
+  {
+   "id": "MG-17",
+   "axis": "capability/annotations",
+   "ok": true,
+   "detail": "readOnlyHint-true-but-T3_destructive_or_exec"
+  },
+  {
+   "id": "MG-18",
+   "axis": "capability/annotations",
+   "ok": true,
+   "detail": "1:1"
+  },
+  {
+   "id": "MG-19",
+   "axis": "corpus/recall",
+   "ok": true,
+   "detail": "0.9688"
+  },
+  {
+   "id": "MG-20",
+   "axis": "corpus/recall",
+   "ok": true,
+   "detail": "0.0"
+  }
+ ]
+}

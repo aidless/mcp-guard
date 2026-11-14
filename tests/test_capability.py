@@ -20,7 +20,6 @@ import json
 from guard import capability
 from guard.capability import (
     T0_READ,
-    T1_LOCAL,
     T2_MUTATE,
     T3_DESTRUCTIVE,
     annotation_violations,
