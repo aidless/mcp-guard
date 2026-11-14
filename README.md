@@ -34,7 +34,7 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 
 ## 安装
 
-**PyPI：`pip install mcp-guard-scan`** —— 0.2.1 起可用，首发于 2026-11-11T11:22Z。
+**PyPI：`pip install mcp-guard-scan`** —— 最新 0.3.0；0.2.1 首次上线于 2026-11-11T11:22Z。
 
 发行名是 `mcp-guard-scan` 而不是 `mcp-guard`，**console script 名一个都没改**（装完仍是
 `mcp-guard` / `mcp-guard-scan` / `mcp-guard-proxy`）。两个阻塞原因均已实测/源码核对：
@@ -67,8 +67,8 @@ MCPTox（2025-08）对 45 个真实 MCP 服务 × 20 个模型的投毒成功率
 三种免 PyPI 的等价装法（同样公开、可匿名）：
 
 ```bash
-# 方式一：GitHub Release 工件（v0.2.1，含 SHA256SUMS）
-pip install https://github.com/aidless/mcp-guard/releases/download/v0.2.1/mcp_guard_scan-0.2.1-py3-none-any.whl
+# 方式一：GitHub Release 工件（v0.3.0，含 SHA256SUMS）
+pip install https://github.com/aidless/mcp-guard/releases/download/v0.3.0/mcp_guard_scan-0.3.0-py3-none-any.whl
 
 # 方式二：直接从仓库（公开，可匿名）
 pip install git+https://github.com/aidless/mcp-guard
@@ -79,11 +79,13 @@ pip install .
 mcp-guard --offline
 ```
 
-> **版本提示**：PyPI 上的 0.2.1 **不包含** 0.2.1 之后的三项改动——`--format sarif`
-> （SARIF/CWE 输出）、`--discover`（配置审计）、以及 HTTP 代理的上游目的地校验
-> （含 `--allow-link-local-upstream`）。装 PyPI 版跑前两个会得到
-> `unrecognized arguments`，而且**代理没有 SSRF 防护**。要现在用请从仓库装：
-> `pip install git+https://github.com/aidless/mcp-guard`。
+> **版本提示**：`0.3.0` 起，下列能力都在 PyPI 包里 —— `--format sarif`
+> （SARIF 2.1.0 + CWE 映射）、`--discover`（客户端配置审计）、`--cross-tool`
+> （跨工具一致性）、`--max-calls`（有界调用日志），以及 HTTP 代理的上游目的地
+> 校验（解析一次后钉死地址，防 DNS rebinding；含 `--allow-link-local-upstream`）。
+> **0.2.1 及更早没有这些**：那两个旗标会报 `unrecognized arguments`，且代理
+> **没有任何 SSRF 防护**——如果装的是旧版代理，它会把上游指向
+> `169.254.169.254` 的请求原样转发。
 
 开发（可编辑 + 跑测试）：
 

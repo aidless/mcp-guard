@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-14
 
 ### Added
 - `--cross-tool`：跨工具一致性检查（共享前置 / 前置成环 / 引用不存在的工具）。
