@@ -31,6 +31,16 @@ from .capability import (
 )
 
 
+def _version() -> str:
+    """installed version when available; a source checkout reports 0.0.0"""
+    try:
+        from importlib.metadata import version as dist_version
+
+        return dist_version("mcp-guard-scan")
+    except Exception:  # noqa: BLE001 - metadata is optional for a bare checkout
+        return "0.0.0"
+
+
 def load_tools(path: str) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         tools = json.load(f)
@@ -55,6 +65,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="存在 T3 破坏或任意执行能力时退出码 1（隐含 --capability）")
     ap.add_argument("--require-annotations", action="store_true",
                     help="能写入/破坏的工具缺少显式 readOnlyHint/destructiveHint 时退出码 1（隐含 --capability）")
+    ap.add_argument("--format", choices=("jsonl", "sarif"), default="jsonl",
+                    help="jsonl (default): one scan result per line; sarif: a single "
+                         "SARIF 2.1.0 log for GitHub Code Scanning")
     ap.add_argument("--annotation-report", default=None, type=pathlib.Path, metavar="PATH",
                     help="把注解门结果（violations/warnings/tier_mismatches）写成 JSON 工件；只出报告不改变退出码")
     args = ap.parse_args(argv)
@@ -72,18 +85,27 @@ def main(argv: list[str] | None = None) -> int:
         pinned = data.get("digests", {})
         snapshots = data.get("tools", {})
 
+    # --format sarif must emit exactly ONE json document on stdout, so anything that
+    # is not the SARIF log is diverted to stderr in that mode.
+    as_sarif = args.format == "sarif"
+
+    def emit(obj) -> None:
+        print(json.dumps(obj, ensure_ascii=False), file=sys.stderr if as_sarif else sys.stdout)
+
     flagged = 0
+    scan_results: list[dict] = []
     for t in tools:
         result = scan_tool(t)
+        scan_results.append(result)
         if result["flagged"]:
             flagged += 1
-        print(json.dumps(result, ensure_ascii=False))
+        emit(result)
         if want_capability:
             capability = scan_capability(t)
             capability_results.append(capability)
-            print(json.dumps({"capability": capability}, ensure_ascii=False))
+            emit({"capability": capability})
         if pinned:
-            print(json.dumps(check_drift(t, pinned, snapshots), ensure_ascii=False))
+            emit(check_drift(t, pinned, snapshots))
         name = t.get("name", "?")
         pinned[name] = digest_tool(t)
         snapshots[name] = t
@@ -106,8 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.require_annotations:
         summary["annotation_violations"] = len(violations)
         summary["annotation_warnings"] = len(warnings)
-        print(json.dumps({"annotations": {"violations": violations, "warnings": warnings}},
-                         ensure_ascii=False))
+        emit({"annotations": {"violations": violations, "warnings": warnings}})
     if args.annotation_report:
         try:
             args.annotation_report.write_text(
@@ -120,6 +141,11 @@ def main(argv: list[str] | None = None) -> int:
                               "error": f"annotation-report unwritable: {exc}"}),
                   file=sys.stderr)
             return 2
+    if as_sarif:
+        from .sarif import to_sarif
+
+        print(json.dumps(to_sarif(scan_results, artifact_uri=args.tools, version=_version()),
+                         ensure_ascii=False, indent=2))
     print(json.dumps(summary, ensure_ascii=False), file=sys.stderr)
 
     destructive = summary.get("capability", {}).get("destructive", [])
