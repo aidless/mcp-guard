@@ -1,6 +1,6 @@
 {
- "total": 20,
- "passed": 20,
+ "total": 25,
+ "passed": 25,
  "failed": 0,
  "selftest": false,
  "failed_by_axis": {},
@@ -124,6 +124,36 @@
    "axis": "corpus/recall",
    "ok": true,
    "detail": "0.0"
+  },
+  {
+   "id": "MG-21",
+   "axis": "rules/recipient",
+   "ok": true,
+   "detail": "recipient-rewrite=bcc"
+  },
+  {
+   "id": "MG-22",
+   "axis": "rules/encoded",
+   "ok": true,
+   "detail": "encoded-exfil=api token"
+  },
+  {
+   "id": "MG-23",
+   "axis": "rules/call-order",
+   "ok": true,
+   "detail": "call-order-hijack=must"
+  },
+  {
+   "id": "MG-24",
+   "axis": "rules/behavior",
+   "ok": true,
+   "detail": "behavior-override=must"
+  },
+  {
+   "id": "MG-25",
+   "axis": "rules/pollution",
+   "ok": true,
+   "detail": "param-pollution=drop table users"
   }
  ]
 }

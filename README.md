@@ -680,9 +680,9 @@ schema，报告里逐条写明了这些边界。
 
 ## 验收标准与复算
 
-本仓判为合格的条件是 `python3 eval/run_cases.py` 通过率必须为 100%（20/20），且 `make eval` 退出码必须为 0；任何一条失败即判为不合格。
+本仓判为合格的条件是 `python3 eval/run_cases.py` 通过率必须为 100%（25/25），且 `make eval` 退出码必须为 0；任何一条失败即判为不合格。
 
-题库是 `eval/cases.jsonl`（20 条，七键 `id/axis/question/expected/mode/verify/source`）：每条的 `verify` 是一段真跑本仓 API 的 Python（`guard.rules.scan_text` / `guard.scan.scan_tool`、`guard.drift.diff_tool`、`guard.capability.scan_capability` 等）或现读本仓语料 `tasks/cases.jsonl` 现算的数，期望值不是从文档抄的——改一行实现就可能变红。
+题库是 `eval/cases.jsonl`（25 条，七键 `id/axis/question/expected/mode/verify/source`）：每条的 `verify` 是一段真跑本仓 API 的 Python（`guard.rules.scan_text` / `guard.scan.scan_tool`、`guard.drift.diff_tool`、`guard.capability.scan_capability` 等）或现读本仓语料 `tasks/cases.jsonl` 现算的数，期望值不是从文档抄的——改一行实现就可能变红。
 
 | axis | 条数 | 测什么 | 失败意味着 |
 |---|---|---|---|
@@ -698,8 +698,8 @@ schema，报告里逐条写明了这些边界。
 三条命令：
 
 ```bash
-python3 eval/run_cases.py             # 20/20，退出码 0
-python3 eval/run_cases.py --selftest  # 篡改 MG-01 期望值 → 19/20，故意变红，退出码 0
+python3 eval/run_cases.py             # 25/25，退出码 0
+python3 eval/run_cases.py --selftest  # 篡改 MG-01 期望值 → 24/25，故意变红，退出码 0
 make eval                             # 先跑题库再跑既有 pytest，退出码 0
 ```
 
